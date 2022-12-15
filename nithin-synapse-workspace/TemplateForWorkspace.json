@@ -1,0 +1,2008 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Workspace name",
+			"defaultValue": "nithin-synapse-workspace"
+		},
+		"Linked_OnPremiseSQL_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'Linked_OnPremiseSQL'"
+		},
+		"linked_synapse_sql_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'linked_synapse_sql'"
+		},
+		"ls_onpremsql_ba_poc_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ls_onpremsql_ba_poc'",
+			"defaultValue": "Integrated Security=False;Data Source=@{linkedService().serverName};Initial Catalog=@{linkedService().databaseName};User ID=@{linkedService().userName};Password=@{linkedService().password}"
+		},
+		"ls_synapsesql_ba_poc_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ls_synapsesql_ba_poc'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=@{linkedService().serverName};Initial Catalog=@{linkedService().databaseName};User ID=@{linkedService().userName};Password=@{linkedService().password}"
+		},
+		"nithin-synapse-workspace-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'nithin-synapse-workspace-WorkspaceDefaultSqlServer'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:nithin-synapse-workspace.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"nithin-synapse-workspace-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://datalakestoragenithin.dfs.core.windows.net"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/Backup_IncrementalCopyfromOnPremSQL_CDC')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup for watermark table",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"sqlReaderQuery": "select  TableName,SchemaName,LastPipeLineExecutedDateTime,ColumnDetails\r\n from watermarktable",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DS_OnPremiseSQL_CDC",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachTable",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup for watermark table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup for watermark table').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Copy Incremental Data",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlServerSource",
+											"sqlReaderQuery": {
+												"value": "@concat('DECLARE @begin_time datetime, @end_time datetime, @from_lsn binary(10), @to_lsn binary(10); \nSET @begin_time = ''',item().LastPipeLineExecutedDateTime,''';\nSET @end_time = ''',formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff'),''';;\nSET @from_lsn = sys.fn_cdc_map_time_to_lsn(''smallest greater than or equal'', @begin_time);\nSET @to_lsn = sys.fn_cdc_map_time_to_lsn(''largest less than'', @end_time);\nSELECT ',item().ColumnDetails,' FROM cdc.fn_cdc_get_net_changes_',item().SchemaName,'_',item().TableName,'(@from_lsn, @to_lsn, ''all'')')",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "DS_OnPremiseSQL_CDC",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_ADLSGen2_CDC",
+											"type": "DatasetReference",
+											"parameters": {
+												"ParamTablename": {
+													"value": "@concat(item().SchemaName,'.',item().TableName,'_CT')",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "Sp_UpdateWatermarktable",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Copy Incremental Data",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[dbo].[SP_update_watermarktable]",
+										"storedProcedureParameters": {
+											"LastExecuteDateTime": {
+												"value": {
+													"value": "@formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff')",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"SchemaName": {
+												"value": {
+													"value": "@item().SchemaName",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "Linked_OnPremiseSQL",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "Copy Merge fro CT to Raw",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Sp_UpdateWatermarktable",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings",
+												"copyBehavior": "MergeFiles"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "DS_ADLSGen2_CDC",
+											"type": "DatasetReference",
+											"parameters": {
+												"ParamTablename": {
+													"value": "@concat(item().SchemaName,'.',item().TableName,'_CT')",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_ADLSGen2_CDC",
+											"type": "DatasetReference",
+											"parameters": {
+												"ParamTablename": {
+													"value": "@concat(item().SchemaName,'.',item().TableName)",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "SP_MergefromRawtoGold",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Copy Merge fro CT to Raw",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[Sales].[SP_MergefromRawtoGold]",
+										"storedProcedureParameters": {
+											"DesSchemaName": {
+												"value": "sales",
+												"type": "String"
+											},
+											"SourceSchemaName": {
+												"value": "ext",
+												"type": "String"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().Tablename",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "linked_synapse_sql",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-12-14T05:07:14Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/DS_OnPremiseSQL_CDC')]",
+				"[concat(variables('workspaceId'), '/datasets/DS_ADLSGen2_CDC')]",
+				"[concat(variables('workspaceId'), '/linkedServices/Linked_OnPremiseSQL')]",
+				"[concat(variables('workspaceId'), '/linkedServices/linked_synapse_sql')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/CDC_Final')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup for watermark table",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"sqlReaderQuery": "select  TableName,SchemaName,LastPipeLineExecutedDateTime,ColumnDetails\r\n from watermarktable",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_onpremsql",
+								"type": "DatasetReference",
+								"parameters": {
+									"dbNamefromds_onpremsql": {
+										"value": "@pipeline().parameters.dbNameOnPremfromPipeline",
+										"type": "Expression"
+									},
+									"serverNamefromds_onpremsql": {
+										"value": "@pipeline().parameters.serverNameOnPremfromPipeline",
+										"type": "Expression"
+									},
+									"userNamefromds_onpremsql": {
+										"value": "@pipeline().parameters.userNameOnPremfromPipeline",
+										"type": "Expression"
+									},
+									"passwordfromds_onpremsql": {
+										"value": "@pipeline().parameters.passwordOnPremfromPipeline",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachTable",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup for watermark table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup for watermark table').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Copy Incremental Data",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlServerSource",
+											"sqlReaderQuery": {
+												"value": "@concat('DECLARE @begin_time datetime, @end_time datetime, @from_lsn binary(10), @to_lsn binary(10); \nSET @begin_time = ''',item().LastPipeLineExecutedDateTime,''';\nSET @end_time = ''',formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff'),''';;\nSET @from_lsn = sys.fn_cdc_map_time_to_lsn(''smallest greater than or equal'', @begin_time);\nSET @to_lsn = sys.fn_cdc_map_time_to_lsn(''largest less than'', @end_time);\nSELECT ',item().ColumnDetails,' FROM cdc.fn_cdc_get_net_changes_',item().SchemaName,'_',item().TableName,'(@from_lsn, @to_lsn, ''all'')')",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "ds_ba_poc_onpremsql",
+											"type": "DatasetReference",
+											"parameters": {
+												"dbNamefromds_onpremsql": {
+													"value": "@pipeline().parameters.dbNameOnPremfromPipeline",
+													"type": "Expression"
+												},
+												"serverNamefromds_onpremsql": {
+													"value": "@pipeline().parameters.serverNameOnPremfromPipeline",
+													"type": "Expression"
+												},
+												"userNamefromds_onpremsql": {
+													"value": "@pipeline().parameters.userNameOnPremfromPipeline",
+													"type": "Expression"
+												},
+												"passwordfromds_onpremsql": {
+													"value": "@pipeline().parameters.passwordOnPremfromPipeline",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ds_ba_poc_adls_delimit",
+											"type": "DatasetReference",
+											"parameters": {
+												"dsparamFileName": {
+													"value": "@concat(item().SchemaName,'.',item().TableName,'_CT.csv')",
+													"type": "Expression"
+												},
+												"dsparamContainerName": "poc",
+												"dsparamDirectoryName": "rawlayer"
+											}
+										}
+									]
+								},
+								{
+									"name": "Sp_UpdateWatermarktable",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "SP_MergefromRawtoGold",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[dbo].[SP_update_watermarktable]",
+										"storedProcedureParameters": {
+											"LastExecuteDateTime": {
+												"value": {
+													"value": "@formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff')",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"SchemaName": {
+												"value": {
+													"value": "@item().SchemaName",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "Linked_OnPremiseSQL",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "SP_MergefromRawtoGold",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Lookup SPName for Merge",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": {
+											"value": "@concat(activity('Lookup SPName for Merge').output.firstRow.SchemaName,'.',activity('Lookup SPName for Merge').output.firstRow.StoredProcedureName)",
+											"type": "Expression"
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "ls_synapsesql_ba_poc",
+										"type": "LinkedServiceReference",
+										"parameters": {
+											"databaseName": {
+												"value": "@pipeline().parameters.dbNameSynSQLfromPipeline",
+												"type": "Expression"
+											},
+											"serverName": {
+												"value": "@pipeline().parameters.serverNameSynSQLfromPipeline",
+												"type": "Expression"
+											},
+											"userName": {
+												"value": "@pipeline().parameters.userNameSynSQLfromPipeline",
+												"type": "Expression"
+											},
+											"password": {
+												"value": "@pipeline().parameters.passwordSynSQLfromPipeline",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "Lookup SPName for Merge",
+									"type": "Lookup",
+									"dependsOn": [
+										{
+											"activity": "Copy Incremental Data",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlPoolSource",
+											"sqlReaderQuery": {
+												"value": "select SchemaName,TableName,StoredProcedureName\nfrom ext.ConfigSPforMerge\nwhere TableName='@{item().TableName}'",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00"
+										},
+										"dataset": {
+											"referenceName": "ds_ba_poc_synsql",
+											"type": "DatasetReference",
+											"parameters": {}
+										},
+										"firstRowOnly": true
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"dbNameOnPremfromPipeline": {
+						"type": "string",
+						"defaultValue": "AdventureWorks2019"
+					},
+					"serverNameOnPremfromPipeline": {
+						"type": "string",
+						"defaultValue": "LAP00287\\MSSQLSERVER01"
+					},
+					"userNameOnPremfromPipeline": {
+						"type": "string",
+						"defaultValue": "sa"
+					},
+					"passwordOnPremfromPipeline": {
+						"type": "string",
+						"defaultValue": "Novigo@123"
+					},
+					"dbNameSynSQLfromPipeline": {
+						"type": "string",
+						"defaultValue": "dedicatedsqlpool"
+					},
+					"serverNameSynSQLfromPipeline": {
+						"type": "string",
+						"defaultValue": "nithin-synapse-workspace.sql.azuresynapse.net"
+					},
+					"userNameSynSQLfromPipeline": {
+						"type": "string",
+						"defaultValue": "nithumgm"
+					},
+					"passwordSynSQLfromPipeline": {
+						"type": "string",
+						"defaultValue": "Nithu@46588"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-12-14T09:24:24Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_onpremsql')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adls_delimit')]",
+				"[concat(variables('workspaceId'), '/linkedServices/Linked_OnPremiseSQL')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_synapsesql_ba_poc')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_synsql')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/IncrementalCopyfromOnPremSQL_CDC')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup for watermark table",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"sqlReaderQuery": "select  TableName,SchemaName,LastPipeLineExecutedDateTime,ColumnDetails\r\n from watermarktable",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DS_OnPremiseSQL_CDC",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachTable",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup for watermark table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup for watermark table').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Copy Incremental Data",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlServerSource",
+											"sqlReaderQuery": {
+												"value": "@concat('DECLARE @begin_time datetime, @end_time datetime, @from_lsn binary(10), @to_lsn binary(10); \nSET @begin_time = ''',item().LastPipeLineExecutedDateTime,''';\nSET @end_time = ''',formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff'),''';;\nSET @from_lsn = sys.fn_cdc_map_time_to_lsn(''smallest greater than or equal'', @begin_time);\nSET @to_lsn = sys.fn_cdc_map_time_to_lsn(''largest less than'', @end_time);\nSELECT ',item().ColumnDetails,' FROM cdc.fn_cdc_get_net_changes_',item().SchemaName,'_',item().TableName,'(@from_lsn, @to_lsn, ''all'')')",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "DS_OnPremiseSQL_CDC",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_ADLSGen2_CDC",
+											"type": "DatasetReference",
+											"parameters": {
+												"ParamTablename": {
+													"value": "@concat(item().SchemaName,'.',item().TableName,'_CT')",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "Sp_UpdateWatermarktable",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "SP_MergefromRawtoGold",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[dbo].[SP_update_watermarktable]",
+										"storedProcedureParameters": {
+											"LastExecuteDateTime": {
+												"value": {
+													"value": "@formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff')",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"SchemaName": {
+												"value": {
+													"value": "@item().SchemaName",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "Linked_OnPremiseSQL",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "SP_MergefromRawtoGold",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Copy Incremental Data",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[Sales].[SP_MergefromRawtoGold]",
+										"storedProcedureParameters": {
+											"DesSchemaName": {
+												"value": "sales",
+												"type": "String"
+											},
+											"SourceSchemaName": {
+												"value": "ext",
+												"type": "String"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().Tablename",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "linked_synapse_sql",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-12-14T04:49:39Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/DS_OnPremiseSQL_CDC')]",
+				"[concat(variables('workspaceId'), '/datasets/DS_ADLSGen2_CDC')]",
+				"[concat(variables('workspaceId'), '/linkedServices/Linked_OnPremiseSQL')]",
+				"[concat(variables('workspaceId'), '/linkedServices/linked_synapse_sql')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/IncrementalCopyfromOnpremtoRawLayer')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup for watermark table",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "LookupforServerDetails",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"sqlReaderQuery": "select  TableName,SchemaName,LastPipeLineExecutedDateTime,ColumnDetails\n from watermarktable",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_onpremsql",
+								"type": "DatasetReference",
+								"parameters": {
+									"dbNamefromds_onpremsql": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.DatabaseName",
+										"type": "Expression"
+									},
+									"serverNamefromds_onpremsql": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.ServerName",
+										"type": "Expression"
+									},
+									"userNamefromds_onpremsql": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.UserName",
+										"type": "Expression"
+									},
+									"passwordfromds_onpremsql": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.Password",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachTable",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup for watermark table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup for watermark table').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Copy Incremental Data",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlServerSource",
+											"sqlReaderQuery": {
+												"value": "@concat('DECLARE @begin_time datetime, @end_time datetime, @from_lsn binary(10), @to_lsn binary(10); \nSET @begin_time = ''',item().LastPipeLineExecutedDateTime,''';\nSET @end_time = ''',formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff'),''';;\nSET @from_lsn = sys.fn_cdc_map_time_to_lsn(''smallest greater than or equal'', @begin_time);\nSET @to_lsn = sys.fn_cdc_map_time_to_lsn(''largest less than'', @end_time);\nSELECT ',item().ColumnDetails,' FROM cdc.fn_cdc_get_net_changes_',item().SchemaName,'_',item().TableName,'(@from_lsn, @to_lsn, ''all'')')",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "ds_ba_poc_onpremsql",
+											"type": "DatasetReference",
+											"parameters": {
+												"dbNamefromds_onpremsql": {
+													"value": "@activity('LookupforServerDetails').output.firstRow.DatabaseName",
+													"type": "Expression"
+												},
+												"serverNamefromds_onpremsql": {
+													"value": "@activity('LookupforServerDetails').output.firstRow.ServerName",
+													"type": "Expression"
+												},
+												"userNamefromds_onpremsql": {
+													"value": "@activity('LookupforServerDetails').output.firstRow.UserName",
+													"type": "Expression"
+												},
+												"passwordfromds_onpremsql": {
+													"value": "@activity('LookupforServerDetails').output.firstRow.Password",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ds_ba_poc_adls_delimit",
+											"type": "DatasetReference",
+											"parameters": {
+												"dsparamFileName": {
+													"value": "@concat(item().SchemaName,'.',item().TableName,'_CT.csv')",
+													"type": "Expression"
+												},
+												"dsparamContainerName": "poc",
+												"dsparamDirectoryName": "rawlayer"
+											}
+										}
+									]
+								},
+								{
+									"name": "Sp_UpdateWatermarktable",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Copy Incremental Data",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[dbo].[SP_update_watermarktable]",
+										"storedProcedureParameters": {
+											"LastExecuteDateTime": {
+												"value": {
+													"value": "@formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff')",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											},
+											"TableName": {
+												"value": {
+													"value": "@item().TableName",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"SchemaName": {
+												"value": {
+													"value": "@item().SchemaName",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "ls_onpremsql_ba_poc",
+										"type": "LinkedServiceReference",
+										"parameters": {
+											"databaseName": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.DatabaseName",
+												"type": "Expression"
+											},
+											"serverName": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.ServerName",
+												"type": "Expression"
+											},
+											"userName": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.UserName",
+												"type": "Expression"
+											},
+											"password": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.Password",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "LookupforServerDetails",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_adls_json",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "OnPremSQLServerDetails.json",
+									"dsparamContainerName": "poc",
+									"dsparamDirectoryName": "configfiles"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-12-15T08:14:38Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_onpremsql')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adls_json')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adls_delimit')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_onpremsql_ba_poc')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/MergefromRawtoGold')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup SPName for Merge",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "LookupforServerDetails",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlPoolSource",
+								"sqlReaderQuery": {
+									"value": "select StoredProcedureName\nfrom ext.ConfigSPforMerge\n",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00"
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_synsql",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachStoredProcedure",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup SPName for Merge",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup SPName for Merge').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "SP_MergefromRawtoGold",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": {
+											"value": "@item().StoredProcedureName",
+											"type": "Expression"
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "ls_synapsesql_ba_poc",
+										"type": "LinkedServiceReference",
+										"parameters": {
+											"databaseName": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.DatabaseName",
+												"type": "Expression"
+											},
+											"serverName": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.ServerName",
+												"type": "Expression"
+											},
+											"userName": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.UserName",
+												"type": "Expression"
+											},
+											"password": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.Password",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "LookupforServerDetails",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_adls_json",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "SynSQLServerDetails.json",
+									"dsparamContainerName": "poc",
+									"dsparamDirectoryName": "configfiles"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-12-15T08:14:42Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_synsql')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adls_json')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_synapsesql_ba_poc')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DS_ADLSGen2_CDC')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "nithin-synapse-workspace-WorkspaceDefaultStorage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"ParamTablename": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@concat(dataset().ParamTablename,'.csv')",
+							"type": "Expression"
+						},
+						"fileSystem": "rawlayer"
+					},
+					"columnDelimiter": "|",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": ""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/nithin-synapse-workspace-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DS_OnPremiseSQL_CDC')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Linked_OnPremiseSQL",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [],
+				"typeProperties": {}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/Linked_OnPremiseSQL')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DS_Parquet_CDC')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "nithin-synapse-workspace-WorkspaceDefaultStorage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"ParamTablename": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@concat(dataset().ParamTablename,'.parquet')",
+							"type": "Expression"
+						},
+						"fileSystem": "rawlayer"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/nithin-synapse-workspace-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_adls_delimit')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "nithin-synapse-workspace-WorkspaceDefaultStorage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"dsparamFileName": {
+						"type": "string"
+					},
+					"dsparamContainerName": {
+						"type": "string"
+					},
+					"dsparamDirectoryName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().dsparamFileName",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().dsparamDirectoryName",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().dsparamContainerName",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": "|",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": ""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/nithin-synapse-workspace-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_adls_json')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "nithin-synapse-workspace-WorkspaceDefaultStorage",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"dsparamFileName": {
+						"type": "string"
+					},
+					"dsparamContainerName": {
+						"type": "string"
+					},
+					"dsparamDirectoryName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().dsparamFileName",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().dsparamDirectoryName",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().dsparamContainerName",
+							"type": "Expression"
+						}
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/nithin-synapse-workspace-WorkspaceDefaultStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_onpremsql')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_onpremsql_ba_poc",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"databaseName": {
+							"value": "@dataset().dbNamefromds_onpremsql",
+							"type": "Expression"
+						},
+						"serverName": {
+							"value": "@dataset().serverNamefromds_onpremsql",
+							"type": "Expression"
+						},
+						"userName": {
+							"value": "@dataset().userNamefromds_onpremsql",
+							"type": "Expression"
+						},
+						"password": {
+							"value": "@dataset().passwordfromds_onpremsql",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"dbNamefromds_onpremsql": {
+						"type": "string"
+					},
+					"serverNamefromds_onpremsql": {
+						"type": "string"
+					},
+					"userNamefromds_onpremsql": {
+						"type": "string"
+					},
+					"passwordfromds_onpremsql": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [],
+				"typeProperties": {}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_onpremsql_ba_poc')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_synsql')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "SqlPoolTable",
+				"schema": [],
+				"typeProperties": {},
+				"sqlPool": {
+					"referenceName": "dedicatedsqlpool",
+					"type": "SqlPoolReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/sqlPools/dedicatedsqlpool')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Linked_OnPremiseSQL')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "SqlServer",
+				"typeProperties": {
+					"connectionString": "[parameters('Linked_OnPremiseSQL_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "OnPremiSQLtoCloud",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/OnPremiSQLtoCloud')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/linked_synapse_sql')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('linked_synapse_sql_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ls_onpremsql_ba_poc')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"databaseName": {
+						"type": "string"
+					},
+					"serverName": {
+						"type": "string"
+					},
+					"userName": {
+						"type": "string"
+					},
+					"password": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "SqlServer",
+				"typeProperties": {
+					"connectionString": "[parameters('ls_onpremsql_ba_poc_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "OnPremiSQLtoCloud",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/OnPremiSQLtoCloud')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ls_synapsesql_ba_poc')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"databaseName": {
+						"type": "string"
+					},
+					"serverName": {
+						"type": "string"
+					},
+					"userName": {
+						"type": "string"
+					},
+					"password": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('ls_synapsesql_ba_poc_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nithin-synapse-workspace-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('nithin-synapse-workspace-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nithin-synapse-workspace-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('nithin-synapse-workspace-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/OnPremiSQLtoCloud')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "SelfHosted",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
+			"type": "Microsoft.Synapse/workspaces/credentials",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "ManagedIdentity",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 1')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- This is auto-generated code\nSELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'https://datalakestoragenithin.dfs.core.windows.net/rawlayer/sales_SalesOrderDetail_CT.csv',\n        FORMAT = 'CSV',\n        PARSER_VERSION = '2.0'\n    ) AS [result]\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 10')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "DECLARE @json NVARCHAR(MAX);\nSET @json = N'{\"id\":1,\"name\":\"Leanne Graham\",\"username\":\"Bret\",\"email\":\"Sincere@april.biz\",\"address\":{\"street\":\"Kulas Light\",\"suite\":\"Apt. 556\",\"city\":\n\"Gwenborough\",\"zipcode\":\"92998-3874\",\"geo\":{\"lat\":\"-37.3159\",\"lng\":\"81.1496\"}},\"phone\":\"1-770-736-8031 x56442\",\"website\":\"hildegard.org\",\"company\":{\"name\":\"Romaguera-Crona\",\"catchPhrase\":\"Multi-layered client-server neural-net\",\"bs\":\"harness real-time e-markets\"}}\n{\"id\":2,\"name\":\"Ervin Howell\",\"username\":\"Antonette\",\"email\":\"Shanna@melissa.tv\",\"address\":{\"street\":\"Victor Plains\",\"suite\":\"Suite 879\",\"city\":\"Wisokyburgh\",\"zipcode\":\"90566-7771\",\"geo\":{\"lat\":\"-43.9509\",\"lng\":\"-34.4618\"}},\"phone\":\"010-692-6593 x09125\",\"website\":\"anastasia.net\",\"company\":{\"name\":\"Deckow-Crist\",\"catchPhrase\":\"Proactive didactic contingency\",\"bs\":\"synergize scalable supply-chains\"}}\n';\n\nSELECT id, name, username, email, street, suite,  zipcode,lat,lng,phone,website,website,companyname,catchPhrase,bs\nFROM OPENJSON(@json)  \n  WITH (\n    id INT '$.id',\n    name NVARCHAR(50) '$.name',\n    username NVARCHAR(50) '$.username',  \n    email NVARCHAR(50) '$.email',  \n    street NVARCHAR(50) '$.address.street',  \n    suite NVARCHAR(50) '$.address.suite',  \n    zipcode NVARCHAR(50) '$.address.zipcode',  \n    lat NVARCHAR(50) '$.address.geo.lat', \n    lng NVARCHAR(50) '$.address.geo.lng', \n    phone NVARCHAR(50) '$.phone', \n    website NVARCHAR(50) '$.website', \n    companyname NVARCHAR(50) '$.company.name',\n    catchPhrase NVARCHAR(50) '$.company.catchPhrase',  \n       bs NVARCHAR(max) '$.company.bs' AS JSON \n        /*Note here you use NVARCHAR(MAX) as the data type for the attribute \n            with nested complex object. In the next OPENJSON you can \n            then parse this JSON again using the regular methods.\n        */\n  ) \n\n  OUTER APPLY OPENJSON(bs)\n  WITH (bs1 NVARCHAR(8) '$')\n    /*Since the entire value of the array element is a string value, \n    you can just use the $ notation to get the value.*/\n;",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "dedicatedsqlpool",
+						"poolName": "dedicatedsqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 11')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "DECLARE @json VARCHAR(MAX) = '{\n\"vehicleStatusResponse\": {\n  \"vehicleStatuses\": [\n    {\n      \"vin\": \"ABC1234567890\",\n      \"triggerType\": {\n        \"triggerType\": \"TIMER\",\n        \"context\": \"RFMS\",\n        \"driverId\": {\n          \"tachoDriverIdentification\": {\n            \"driverIdentification\": \"123456789\",\n            \"cardIssuingMemberState\": \"BRA\",\n            \"driverAuthenticationEquipment\": \"CARD\",\n            \"cardReplacementIndex\": \"0\",\n            \"cardRenewalIndex\": \"1\"\n          }\n        }\n      },\n      \"receivedDateTime\": \"2020-02-12T04:11:19.221Z\",\n      \"hrTotalVehicleDistance\": 103306960,\n      \"totalEngineHours\": 3966.6216666666664,\n      \"driver1Id\": {\n        \"tachoDriverIdentification\": {\n          \"driverIdentification\": \"BRA1234567\"\n        }\n      },\n      \"engineTotalFuelUsed\": 48477520,\n      \"accumulatedData\": {\n        \"durationWheelbaseSpeedOverZero\": 8309713,\n        \"distanceCruiseControlActive\": 8612200,\n        \"durationCruiseControlActive\": 366083,\n        \"fuelConsumptionDuringCruiseActive\": 3064170,\n        \"durationWheelbaseSpeedZero\": 5425783,\n        \"fuelWheelbaseSpeedZero\": 3332540,\n        \"fuelWheelbaseSpeedOverZero\": 44709670,\n        \"ptoActiveClass\": [\n          {\n            \"label\": \"wheelbased speed >0\",\n            \"seconds\": 16610,\n            \"meters\": 29050,\n            \"milliLitres\": 26310\n          },\n          {\n            \"label\": \"wheelbased speed =0\",\n            \"seconds\": 457344,\n            \"milliLitres\": 363350\n          }\n        ]\n      }\n    }\n  ]\n}}}}}}}}\n'\n\n\nSELECT *\nFROM OPENJSON( @json, '$.vehicleStatusResponse.vehicleStatuses' )\nWITH (\n    vin VARCHAR(50)  '$.vin',\n    triggerType VARCHAR(50)  '$.triggerType.triggerType',\n    context VARCHAR(50)  '$.triggerType.context',\n    driverIdentification VARCHAR(50)     '$.triggerType.driverId.tachoDriverIdentification.driverIdentification',\n    cardIssuingMemberState VARCHAR(50)   '$.triggerType.driverId.tachoDriverIdentification.cardIssuingMemberState',\n\n    receivedDateTime DATETIME    '$.receivedDateTime',\n\n    engineTotalFuelUsed INT  '$.engineTotalFuelUsed'\n\n\n    )",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "dedicatedsqlpool",
+						"poolName": "dedicatedsqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 12')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": " select\n    JSON_VALUE(doc, '$.id') AS id,\n    JSON_VALUE(doc, '$.name') AS name,\n    JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address.street') AS street,\n    JSON_VALUE(doc, '$.address.suite') AS suite,\n    JSON_VALUE(doc, '$.address.zipcode') AS zipcode,\n    JSON_VALUE(doc,'$.address.geo.lat') as Lat,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc, '$.phone') AS phone,\n    JSON_VALUE(doc, '$.website') AS website,\n    JSON_VALUE(doc, '$.company.name') AS companyname,\n    JSON_VALUE(doc, '$.company.catchPhrase') AS catchPhrase,\n   JSON_VALUE(doc, '$.company.bs') AS bs\nfrom openrowset(\n        BULK 'https://datalakestoragenithin.dfs.core.windows.net/restapi/user.json',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b',\n        ROWTERMINATOR = '0x0b'\n    ) with (doc nvarchar(max)) as rows\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 2')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- This is auto-generated code\nSELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'https://datalakestoragenithin.dfs.core.windows.net/rawlayer/sales_SalesOrderDetail_CT.csv',\n        FORMAT = 'CSV',\n        PARSER_VERSION = '2.0'\n    ) AS [result]\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 3')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "-- This is auto-generated code\nSELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'https://datalakestoragenithin.dfs.core.windows.net/rawlayer/sales_SalesOrderDetail_CT.csv',\n        FORMAT = 'CSV',\n        PARSER_VERSION = '2.0'\n    ) AS [result]\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 4')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE PROCEDURE [Sales].[SP_MergefromRawtoGold]\n    (@SourceSchemaName VARCHAR(100),\n\t@DesSchemaName VARCHAR(100),\n    @TableName VARCHAR(100),\n\t@ColumnDetails1 VARCHAR(MAX),\n\t@ColumnDetails2 VARCHAR(MAX),\n\t@MappingColumnName VARCHAR(100)\n\t)\nAS\n\nDECLARE @SQL VARCHAR(MAX),@ColumnDetails3 VARCHAR(MAX)\n\nSET @ColumnDetails3 =REPLACE(@ColumnDetails2 ,'Source.','')\n\nSET @SQL='\nMERGE '+@DesSchemaName+'.'+@TableName+' AS Target\nUSING  '+@SourceSchemaName+'.'+@TableName+' AS Source\nON (Source.'+@MappingColumnName+' = Target.'+@MappingColumnName+')\n\nWHEN MATCHED THEN\n    UPDATE SET '+@ColumnDetails1+'\nWHEN NOT MATCHED BY TARGET THEN\n    INSERT ('+@ColumnDetails3+')\n    VALUES('+@ColumnDetails2+''');'\n\n\n\tEXEC(@sql)\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "dedicatedsqlpool",
+						"poolName": "dedicatedsqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 5')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "select * from sales.SalesPerson\n\nselect * from ext.SalesPerson_ct",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "dedicatedsqlpool",
+						"poolName": "dedicatedsqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 7')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "SELECT\n    TOP 100 \n    /*Normal Sacalar attributes at parent level in the document in the column*/\n  /*Scalar attributes extraction using JSON_VALUE*/\n    JSON_VALUE(jsonContent, '$.id') AS id\n    ,JSON_VALUE(jsonContent, '$.name') AS name\n    ,JSON_VALUE(jsonContent, '$.username') AS username\n    ,JSON_VALUE(jsonContent, '$.email') AS email\n    /*Query fields with nested objects or arrays\n        Note here we are using JSON_QUERY first , \n            not JSON_VALUE because we are working with nested objects.\n        After we have queried the complex object, \n            we can use JSON_VALUE to extract a scalar value from the nested object.\n        The key difference between JSON_VALUE and JSON_QUERY is that JSON_VALUE \n            returns a scalar value, while JSON_QUERY returns an object or an array.\n    */\n    , JSON_QUERY([result].[JSONDocument], '$.attribute_with_nested_values') AS [attribute_with_nested_values]\n    , JSON_VALUE(\n        JSON_QUERY([result].[JSONDocument], '$.attribute_with_nested_values')\n        , '$.nested_columne_one'\n      ) AS [attribute_with_nested_values-nested_columne_one]\n    , JSON_VALUE(\n        JSON_QUERY([result].[JSONDocument], '$.attribute_with_nested_values')\n        , '$.nested_columne_two'\n      ) AS [attribute_with_nested_values-nested_columne_two]\n    , JSON_VALUE(\n        JSON_QUERY([result].[JSONDocument], '$.attribute_with_nested_values')\n        , '$.nested_columne_three'\n      ) AS [attribute_with_nested_values-nested_columne_three]\n    /*Alternate method to extract scalar attributs from single level nested objects\n        using dot notation*/\n    , JSON_VALUE([result].[JSONDocument], '$.attribute_with_nested_values.nested_columne_one') AS [attribute_with_nested_values-nested_columne_one-dotnotation]\nFROM\n    OPENROWSET(\n        BULK 'https://mydatalakename.dfs.core.windows.net/rawdata/MockCSVFiles/CSVWithJsonColumnMockData_NestedAttributesSample.csv',\n        FORMAT = 'CSV',\n        PARSER_VERSION='2.0',\n        HEADER_ROW = true\n    ) AS [result]",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 8')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "SELECT TOP 100\n    /*Scalar attributes extraction using JSON_VALUE*/\n    JSON_VALUE(jsonContent, '$.id') AS id\n    ,JSON_VALUE(jsonContent, '$.name') AS name\n    ,JSON_VALUE(jsonContent, '$.username') AS username\n    ,JSON_VALUE(jsonContent, '$.email') AS email\n    ,JSON_VALUE(jsonContent, '$.address') AS address\n    /*Scalar attributes extraction from a nested array of objects via OPENJSON and JSON_QUERY*/\n    , [NestedArray].[street]\n    , [NestedArray].[suite]\n     , [NestedArray].[city]\n          , [NestedArray].[zipcode]\nFROM\n    OPENROWSET(\n        BULK 'https://datalakestoragenithin.dfs.core.windows.net/restapi/user.json',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b',\n        ROWTERMINATOR = '0x0b'\n    )\n    WITH(\n        [jsonContent] nvarchar(MAX) /*This now contains the full JSON document from the file. Note the datatype is varchar(MAX).*/\n    ) AS [result]\nCROSS APPLY OPENJSON \n    /*Use JSON_QUERY here because we are querying a nested array, so we cant use JSON_VALUE.\n    We perform JSON_QUERY on the [result].[JSONDocument] field since that is the column with the full JSON Document we want to extract dat from. \n    The path to the attribute is using the normal path to the attribute name that contains the array */\n    (JSON_QUERY([jsonContent], '$.address')) /*Note, if you want only the top most record from this array, replace this line with \"(JSON_QUERY([jsonContent], '$.attribute_with_nested_array[0]'))\"*/\nWITH(\n    [street] varchar(255) '$.street',\n    [suite] varchar(255) '$.suite',\n    [city] varchar(255) '$.city',\n    [zipcode] varchar(255) '$.zipcode'\n   \n) AS [NestedArray]\n    CROSS APPLY OPENJSON \n        (JSON_QUERY([jsonContent], '$.geo'))  as  OPENJSON2\n        WITH(\n        [lat] varchar(255) '$.lat',\n        [lng] varchar(255) '$.lng'\n    \n         ) AS [NestedArray2]",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 9')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": " select\n    JSON_VALUE(doc, '$.id') AS id,\n    JSON_VALUE(doc, '$.name') AS name,\n    JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address') AS address,\n    --JSON_VALUE(doc, '$.street') AS street,\n     doc\nfrom openrowset(\n        BULK 'https://datalakestoragenithin.dfs.core.windows.net/restapi/user.json',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b',\n        ROWTERMINATOR = '0x0b'\n    ) with (doc nvarchar(max)) as rows\norder by JSON_VALUE(doc, '$.id') desc\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/dedicatedsqlpool')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus"
+		}
+	]
+}
