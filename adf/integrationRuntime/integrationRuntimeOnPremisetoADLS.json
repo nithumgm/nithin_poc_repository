@@ -1,0 +1,7 @@
+{
+	"name": "integrationRuntimeOnPremisetoADLS",
+	"properties": {
+		"type": "SelfHosted",
+		"description": "Copy on premise data from Onprem SQL to ADLS"
+	}
+}

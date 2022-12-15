@@ -1,0 +1,128 @@
+{
+	"name": "IncrementalCopyCDCPipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "GetChangeCount",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": {
+							"value": "@concat('DECLARE @begin_time datetime, @end_time datetime, @from_lsn binary(10), @to_lsn binary(10); \nSET @begin_time = ''',pipeline().parameters.triggerStartTime,''';\nSET @end_time = ''',pipeline().parameters.triggerEndTime,''';\nSET @from_lsn = sys.fn_cdc_map_time_to_lsn(''smallest greater than or equal'', @begin_time);\nSET @to_lsn = sys.fn_cdc_map_time_to_lsn(''largest less than'', @end_time);\nSELECT count(1) changecount FROM cdc.fn_cdc_get_net_changes_Sales_SalesOrderDetail(@from_lsn, @to_lsn, ''all'')')",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DS_OnPremSQl_CDC",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "HasChangedRows",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "GetChangeCount",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(int(activity('GetChangeCount').output.firstRow.changecount),0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Copy Incremental Data",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlServerSource",
+									"sqlReaderQuery": {
+										"value": "@concat('DECLARE @begin_time datetime, @end_time datetime, @from_lsn binary(10), @to_lsn binary(10); \nSET @begin_time = ''',pipeline().parameters.triggerStartTime,''';\nSET @end_time = ''',pipeline().parameters.triggerEndTime,''';\nSET @from_lsn = sys.fn_cdc_map_time_to_lsn(''smallest greater than or equal'', @begin_time);\nSET @to_lsn = sys.fn_cdc_map_time_to_lsn(''largest less than'', @end_time);\nSELECT * FROM cdc.fn_cdc_get_net_changes_Sales_SalesOrderDetail(@from_lsn, @to_lsn, ''all'')')",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_OnPremSQl_CDC",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_ADLSGen2_CDC",
+									"type": "DatasetReference",
+									"parameters": {
+										"ParamTableName": "@concat(item().TableName,'_CT')"
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"triggerStartTime": {
+				"type": "string",
+				"defaultValue": "2022-12-08 10:25:09:230"
+			},
+			"triggerEndTime": {
+				"type": "string",
+				"defaultValue": "2022-12-09 10:35:09:230"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-12-09T11:53:38Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

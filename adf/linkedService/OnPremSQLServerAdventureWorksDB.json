@@ -1,0 +1,16 @@
+{
+	"name": "OnPremSQLServerAdventureWorksDB",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "SqlServer",
+		"typeProperties": {
+			"connectionString": "integrated security=False;data source=LAP00287\\MSSQLSERVER01;initial catalog=AdventureWorks2019;user id=sa",
+			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJkYzA5ODI0ZS1hY2VkLTQ2N2EtOTc4ZC1lNTgxNTFlYjMxN2QiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+		},
+		"connectVia": {
+			"referenceName": "integrationRuntimeOnPremisetoADLS",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

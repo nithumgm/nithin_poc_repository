@@ -1,0 +1,9 @@
+{
+	"name": "ADFNithinTest",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "5314bf23-80d5-4f69-b191-916ddd4e6662",
+		"tenantId": "6f35b842-6dd2-4e28-9c14-624323636888"
+	}
+}

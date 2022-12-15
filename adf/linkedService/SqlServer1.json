@@ -1,0 +1,16 @@
+{
+	"name": "SqlServer1",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "SqlServer",
+		"typeProperties": {
+			"connectionString": "integrated security=False;data source=\" LAP00287\\SQLEXPRESS17\";initial catalog=Sample;user id=sa",
+			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiI0M2U1MjFmZS02OGFmLTRjNzUtOGU5Yi1lYmQ0ZjhjMTQ3NzciLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+		},
+		"connectVia": {
+			"referenceName": "integrationRuntimeOnPremisetoADLS",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}
