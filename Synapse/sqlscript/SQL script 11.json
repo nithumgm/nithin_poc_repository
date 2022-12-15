@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 11",
+	"properties": {
+		"content": {
+			"query": "DECLARE @json VARCHAR(MAX) = '{\n\"vehicleStatusResponse\": {\n  \"vehicleStatuses\": [\n    {\n      \"vin\": \"ABC1234567890\",\n      \"triggerType\": {\n        \"triggerType\": \"TIMER\",\n        \"context\": \"RFMS\",\n        \"driverId\": {\n          \"tachoDriverIdentification\": {\n            \"driverIdentification\": \"123456789\",\n            \"cardIssuingMemberState\": \"BRA\",\n            \"driverAuthenticationEquipment\": \"CARD\",\n            \"cardReplacementIndex\": \"0\",\n            \"cardRenewalIndex\": \"1\"\n          }\n        }\n      },\n      \"receivedDateTime\": \"2020-02-12T04:11:19.221Z\",\n      \"hrTotalVehicleDistance\": 103306960,\n      \"totalEngineHours\": 3966.6216666666664,\n      \"driver1Id\": {\n        \"tachoDriverIdentification\": {\n          \"driverIdentification\": \"BRA1234567\"\n        }\n      },\n      \"engineTotalFuelUsed\": 48477520,\n      \"accumulatedData\": {\n        \"durationWheelbaseSpeedOverZero\": 8309713,\n        \"distanceCruiseControlActive\": 8612200,\n        \"durationCruiseControlActive\": 366083,\n        \"fuelConsumptionDuringCruiseActive\": 3064170,\n        \"durationWheelbaseSpeedZero\": 5425783,\n        \"fuelWheelbaseSpeedZero\": 3332540,\n        \"fuelWheelbaseSpeedOverZero\": 44709670,\n        \"ptoActiveClass\": [\n          {\n            \"label\": \"wheelbased speed >0\",\n            \"seconds\": 16610,\n            \"meters\": 29050,\n            \"milliLitres\": 26310\n          },\n          {\n            \"label\": \"wheelbased speed =0\",\n            \"seconds\": 457344,\n            \"milliLitres\": 363350\n          }\n        ]\n      }\n    }\n  ]\n}}}}}}}}\n'\n\n\nSELECT *\nFROM OPENJSON( @json, '$.vehicleStatusResponse.vehicleStatuses' )\nWITH (\n    vin VARCHAR(50)  '$.vin',\n    triggerType VARCHAR(50)  '$.triggerType.triggerType',\n    context VARCHAR(50)  '$.triggerType.context',\n    driverIdentification VARCHAR(50)     '$.triggerType.driverId.tachoDriverIdentification.driverIdentification',\n    cardIssuingMemberState VARCHAR(50)   '$.triggerType.driverId.tachoDriverIdentification.cardIssuingMemberState',\n\n    receivedDateTime DATETIME    '$.receivedDateTime',\n\n    engineTotalFuelUsed INT  '$.engineTotalFuelUsed'\n\n\n    )",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "dedicatedsqlpool",
+				"poolName": "dedicatedsqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

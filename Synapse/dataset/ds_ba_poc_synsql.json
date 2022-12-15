@@ -1,0 +1,13 @@
+{
+	"name": "ds_ba_poc_synsql",
+	"properties": {
+		"annotations": [],
+		"type": "SqlPoolTable",
+		"schema": [],
+		"sqlPool": {
+			"referenceName": "dedicatedsqlpool",
+			"type": "SqlPoolReference"
+		}
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

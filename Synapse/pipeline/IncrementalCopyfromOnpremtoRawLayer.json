@@ -1,0 +1,267 @@
+{
+	"name": "IncrementalCopyfromOnpremtoRawLayer",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup for watermark table",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "LookupforServerDetails",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "select  TableName,SchemaName,LastPipeLineExecutedDateTime,ColumnDetails\n from watermarktable",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_onpremsql",
+						"type": "DatasetReference",
+						"parameters": {
+							"dbNamefromds_onpremsql": {
+								"value": "@activity('LookupforServerDetails').output.firstRow.DatabaseName",
+								"type": "Expression"
+							},
+							"serverNamefromds_onpremsql": {
+								"value": "@activity('LookupforServerDetails').output.firstRow.ServerName",
+								"type": "Expression"
+							},
+							"userNamefromds_onpremsql": {
+								"value": "@activity('LookupforServerDetails').output.firstRow.UserName",
+								"type": "Expression"
+							},
+							"passwordfromds_onpremsql": {
+								"value": "@activity('LookupforServerDetails').output.firstRow.Password",
+								"type": "Expression"
+							}
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEachTable",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup for watermark table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup for watermark table').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy Incremental Data",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlServerSource",
+									"sqlReaderQuery": {
+										"value": "@concat('DECLARE @begin_time datetime, @end_time datetime, @from_lsn binary(10), @to_lsn binary(10); \nSET @begin_time = ''',item().LastPipeLineExecutedDateTime,''';\nSET @end_time = ''',formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff'),''';;\nSET @from_lsn = sys.fn_cdc_map_time_to_lsn(''smallest greater than or equal'', @begin_time);\nSET @to_lsn = sys.fn_cdc_map_time_to_lsn(''largest less than'', @end_time);\nSELECT ',item().ColumnDetails,' FROM cdc.fn_cdc_get_net_changes_',item().SchemaName,'_',item().TableName,'(@from_lsn, @to_lsn, ''all'')')",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_ba_poc_onpremsql",
+									"type": "DatasetReference",
+									"parameters": {
+										"dbNamefromds_onpremsql": {
+											"value": "@activity('LookupforServerDetails').output.firstRow.DatabaseName",
+											"type": "Expression"
+										},
+										"serverNamefromds_onpremsql": {
+											"value": "@activity('LookupforServerDetails').output.firstRow.ServerName",
+											"type": "Expression"
+										},
+										"userNamefromds_onpremsql": {
+											"value": "@activity('LookupforServerDetails').output.firstRow.UserName",
+											"type": "Expression"
+										},
+										"passwordfromds_onpremsql": {
+											"value": "@activity('LookupforServerDetails').output.firstRow.Password",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_ba_poc_adls_delimit",
+									"type": "DatasetReference",
+									"parameters": {
+										"dsparamFileName": {
+											"value": "@concat(item().SchemaName,'.',item().TableName,'_CT.csv')",
+											"type": "Expression"
+										},
+										"dsparamContainerName": "poc",
+										"dsparamDirectoryName": "rawlayer"
+									}
+								}
+							]
+						},
+						{
+							"name": "Sp_UpdateWatermarktable",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Copy Incremental Data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[SP_update_watermarktable]",
+								"storedProcedureParameters": {
+									"LastExecuteDateTime": {
+										"value": {
+											"value": "@formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff')",
+											"type": "Expression"
+										},
+										"type": "DateTime"
+									},
+									"TableName": {
+										"value": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"SchemaName": {
+										"value": {
+											"value": "@item().SchemaName",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_onpremsql_ba_poc",
+								"type": "LinkedServiceReference",
+								"parameters": {
+									"databaseName": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.DatabaseName",
+										"type": "Expression"
+									},
+									"serverName": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.ServerName",
+										"type": "Expression"
+									},
+									"userName": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.UserName",
+										"type": "Expression"
+									},
+									"password": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.Password",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "LookupforServerDetails",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_adls_json",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "OnPremSQLServerDetails.json",
+							"dsparamContainerName": "poc",
+							"dsparamDirectoryName": "configfiles"
+						}
+					}
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-12-15T08:14:38Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}

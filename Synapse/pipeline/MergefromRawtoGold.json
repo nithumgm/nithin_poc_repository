@@ -1,0 +1,142 @@
+{
+	"name": "MergefromRawtoGold",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup SPName for Merge",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "LookupforServerDetails",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlPoolSource",
+						"sqlReaderQuery": {
+							"value": "select StoredProcedureName\nfrom ext.ConfigSPforMerge\n",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00"
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_synsql",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEachStoredProcedure",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup SPName for Merge",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup SPName for Merge').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "SP_MergefromRawtoGold",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": {
+									"value": "@item().StoredProcedureName",
+									"type": "Expression"
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_synapsesql_ba_poc",
+								"type": "LinkedServiceReference",
+								"parameters": {
+									"databaseName": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.DatabaseName",
+										"type": "Expression"
+									},
+									"serverName": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.ServerName",
+										"type": "Expression"
+									},
+									"userName": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.UserName",
+										"type": "Expression"
+									},
+									"password": {
+										"value": "@activity('LookupforServerDetails').output.firstRow.Password",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "LookupforServerDetails",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_adls_json",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "SynSQLServerDetails.json",
+							"dsparamContainerName": "poc",
+							"dsparamDirectoryName": "configfiles"
+						}
+					}
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-12-15T08:14:42Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}

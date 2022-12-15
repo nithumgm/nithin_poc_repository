@@ -1,0 +1,324 @@
+{
+	"name": "CDC_Final",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup for watermark table",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "select  TableName,SchemaName,LastPipeLineExecutedDateTime,ColumnDetails\r\n from watermarktable",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_onpremsql",
+						"type": "DatasetReference",
+						"parameters": {
+							"dbNamefromds_onpremsql": {
+								"value": "@pipeline().parameters.dbNameOnPremfromPipeline",
+								"type": "Expression"
+							},
+							"serverNamefromds_onpremsql": {
+								"value": "@pipeline().parameters.serverNameOnPremfromPipeline",
+								"type": "Expression"
+							},
+							"userNamefromds_onpremsql": {
+								"value": "@pipeline().parameters.userNameOnPremfromPipeline",
+								"type": "Expression"
+							},
+							"passwordfromds_onpremsql": {
+								"value": "@pipeline().parameters.passwordOnPremfromPipeline",
+								"type": "Expression"
+							}
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEachTable",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup for watermark table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup for watermark table').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy Incremental Data",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlServerSource",
+									"sqlReaderQuery": {
+										"value": "@concat('DECLARE @begin_time datetime, @end_time datetime, @from_lsn binary(10), @to_lsn binary(10); \nSET @begin_time = ''',item().LastPipeLineExecutedDateTime,''';\nSET @end_time = ''',formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff'),''';;\nSET @from_lsn = sys.fn_cdc_map_time_to_lsn(''smallest greater than or equal'', @begin_time);\nSET @to_lsn = sys.fn_cdc_map_time_to_lsn(''largest less than'', @end_time);\nSELECT ',item().ColumnDetails,' FROM cdc.fn_cdc_get_net_changes_',item().SchemaName,'_',item().TableName,'(@from_lsn, @to_lsn, ''all'')')",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_ba_poc_onpremsql",
+									"type": "DatasetReference",
+									"parameters": {
+										"dbNamefromds_onpremsql": {
+											"value": "@pipeline().parameters.dbNameOnPremfromPipeline",
+											"type": "Expression"
+										},
+										"serverNamefromds_onpremsql": {
+											"value": "@pipeline().parameters.serverNameOnPremfromPipeline",
+											"type": "Expression"
+										},
+										"userNamefromds_onpremsql": {
+											"value": "@pipeline().parameters.userNameOnPremfromPipeline",
+											"type": "Expression"
+										},
+										"passwordfromds_onpremsql": {
+											"value": "@pipeline().parameters.passwordOnPremfromPipeline",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_ba_poc_adls_delimit",
+									"type": "DatasetReference",
+									"parameters": {
+										"dsparamFileName": {
+											"value": "@concat(item().SchemaName,'.',item().TableName,'_CT.csv')",
+											"type": "Expression"
+										},
+										"dsparamContainerName": "poc",
+										"dsparamDirectoryName": "rawlayer"
+									}
+								}
+							]
+						},
+						{
+							"name": "Sp_UpdateWatermarktable",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "SP_MergefromRawtoGold",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[SP_update_watermarktable]",
+								"storedProcedureParameters": {
+									"LastExecuteDateTime": {
+										"value": {
+											"value": "@formatDateTime(convertTimeZone(utcNow(),'UTC','India Standard Time'),'yyyy-MM-dd HH:mm:ss.fff')",
+											"type": "Expression"
+										},
+										"type": "DateTime"
+									},
+									"TableName": {
+										"value": {
+											"value": "@item().TableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"SchemaName": {
+										"value": {
+											"value": "@item().SchemaName",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "Linked_OnPremiseSQL",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "SP_MergefromRawtoGold",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Lookup SPName for Merge",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": {
+									"value": "@concat(activity('Lookup SPName for Merge').output.firstRow.SchemaName,'.',activity('Lookup SPName for Merge').output.firstRow.StoredProcedureName)",
+									"type": "Expression"
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_synapsesql_ba_poc",
+								"type": "LinkedServiceReference",
+								"parameters": {
+									"databaseName": {
+										"value": "@pipeline().parameters.dbNameSynSQLfromPipeline",
+										"type": "Expression"
+									},
+									"serverName": {
+										"value": "@pipeline().parameters.serverNameSynSQLfromPipeline",
+										"type": "Expression"
+									},
+									"userName": {
+										"value": "@pipeline().parameters.userNameSynSQLfromPipeline",
+										"type": "Expression"
+									},
+									"password": {
+										"value": "@pipeline().parameters.passwordSynSQLfromPipeline",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Lookup SPName for Merge",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "Copy Incremental Data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlPoolSource",
+									"sqlReaderQuery": {
+										"value": "select SchemaName,TableName,StoredProcedureName\nfrom ext.ConfigSPforMerge\nwhere TableName='@{item().TableName}'",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00"
+								},
+								"dataset": {
+									"referenceName": "ds_ba_poc_synsql",
+									"type": "DatasetReference"
+								},
+								"firstRowOnly": true
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"dbNameOnPremfromPipeline": {
+				"type": "string",
+				"defaultValue": "AdventureWorks2019"
+			},
+			"serverNameOnPremfromPipeline": {
+				"type": "string",
+				"defaultValue": "LAP00287\\MSSQLSERVER01"
+			},
+			"userNameOnPremfromPipeline": {
+				"type": "string",
+				"defaultValue": "sa"
+			},
+			"passwordOnPremfromPipeline": {
+				"type": "string",
+				"defaultValue": "Novigo@123"
+			},
+			"dbNameSynSQLfromPipeline": {
+				"type": "string",
+				"defaultValue": "dedicatedsqlpool"
+			},
+			"serverNameSynSQLfromPipeline": {
+				"type": "string",
+				"defaultValue": "nithin-synapse-workspace.sql.azuresynapse.net"
+			},
+			"userNameSynSQLfromPipeline": {
+				"type": "string",
+				"defaultValue": "nithumgm"
+			},
+			"passwordSynSQLfromPipeline": {
+				"type": "string",
+				"defaultValue": "Nithu@46588"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-12-14T09:24:24Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}

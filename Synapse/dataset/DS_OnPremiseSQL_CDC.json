@@ -1,0 +1,13 @@
+{
+	"name": "DS_OnPremiseSQL_CDC",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "Linked_OnPremiseSQL",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": []
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

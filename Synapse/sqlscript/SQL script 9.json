@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 9",
+	"properties": {
+		"content": {
+			"query": " select\n    JSON_VALUE(doc, '$.id') AS id,\n    JSON_VALUE(doc, '$.name') AS name,\n    JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address') AS address,\n    --JSON_VALUE(doc, '$.street') AS street,\n     doc\nfrom openrowset(\n        BULK 'https://datalakestoragenithin.dfs.core.windows.net/restapi/user.json',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b',\n        ROWTERMINATOR = '0x0b'\n    ) with (doc nvarchar(max)) as rows\norder by JSON_VALUE(doc, '$.id') desc\n\n\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

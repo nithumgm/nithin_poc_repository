@@ -1,0 +1,45 @@
+{
+	"name": "ds_ba_poc_onpremsql",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_onpremsql_ba_poc",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"databaseName": {
+					"value": "@dataset().dbNamefromds_onpremsql",
+					"type": "Expression"
+				},
+				"serverName": {
+					"value": "@dataset().serverNamefromds_onpremsql",
+					"type": "Expression"
+				},
+				"userName": {
+					"value": "@dataset().userNamefromds_onpremsql",
+					"type": "Expression"
+				},
+				"password": {
+					"value": "@dataset().passwordfromds_onpremsql",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"dbNamefromds_onpremsql": {
+				"type": "string"
+			},
+			"serverNamefromds_onpremsql": {
+				"type": "string"
+			},
+			"userNamefromds_onpremsql": {
+				"type": "string"
+			},
+			"passwordfromds_onpremsql": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": []
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

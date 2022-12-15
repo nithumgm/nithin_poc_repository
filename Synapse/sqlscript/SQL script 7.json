@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 7",
+	"properties": {
+		"content": {
+			"query": "SELECT\n    TOP 100 \n    /*Normal Sacalar attributes at parent level in the document in the column*/\n  /*Scalar attributes extraction using JSON_VALUE*/\n    JSON_VALUE(jsonContent, '$.id') AS id\n    ,JSON_VALUE(jsonContent, '$.name') AS name\n    ,JSON_VALUE(jsonContent, '$.username') AS username\n    ,JSON_VALUE(jsonContent, '$.email') AS email\n    /*Query fields with nested objects or arrays\n        Note here we are using JSON_QUERY first , \n            not JSON_VALUE because we are working with nested objects.\n        After we have queried the complex object, \n            we can use JSON_VALUE to extract a scalar value from the nested object.\n        The key difference between JSON_VALUE and JSON_QUERY is that JSON_VALUE \n            returns a scalar value, while JSON_QUERY returns an object or an array.\n    */\n    , JSON_QUERY([result].[JSONDocument], '$.attribute_with_nested_values') AS [attribute_with_nested_values]\n    , JSON_VALUE(\n        JSON_QUERY([result].[JSONDocument], '$.attribute_with_nested_values')\n        , '$.nested_columne_one'\n      ) AS [attribute_with_nested_values-nested_columne_one]\n    , JSON_VALUE(\n        JSON_QUERY([result].[JSONDocument], '$.attribute_with_nested_values')\n        , '$.nested_columne_two'\n      ) AS [attribute_with_nested_values-nested_columne_two]\n    , JSON_VALUE(\n        JSON_QUERY([result].[JSONDocument], '$.attribute_with_nested_values')\n        , '$.nested_columne_three'\n      ) AS [attribute_with_nested_values-nested_columne_three]\n    /*Alternate method to extract scalar attributs from single level nested objects\n        using dot notation*/\n    , JSON_VALUE([result].[JSONDocument], '$.attribute_with_nested_values.nested_columne_one') AS [attribute_with_nested_values-nested_columne_one-dotnotation]\nFROM\n    OPENROWSET(\n        BULK 'https://mydatalakename.dfs.core.windows.net/rawdata/MockCSVFiles/CSVWithJsonColumnMockData_NestedAttributesSample.csv',\n        FORMAT = 'CSV',\n        PARSER_VERSION='2.0',\n        HEADER_ROW = true\n    ) AS [result]",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

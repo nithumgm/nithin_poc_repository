@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 10",
+	"properties": {
+		"content": {
+			"query": "DECLARE @json NVARCHAR(MAX);\nSET @json = N'{\"id\":1,\"name\":\"Leanne Graham\",\"username\":\"Bret\",\"email\":\"Sincere@april.biz\",\"address\":{\"street\":\"Kulas Light\",\"suite\":\"Apt. 556\",\"city\":\n\"Gwenborough\",\"zipcode\":\"92998-3874\",\"geo\":{\"lat\":\"-37.3159\",\"lng\":\"81.1496\"}},\"phone\":\"1-770-736-8031 x56442\",\"website\":\"hildegard.org\",\"company\":{\"name\":\"Romaguera-Crona\",\"catchPhrase\":\"Multi-layered client-server neural-net\",\"bs\":\"harness real-time e-markets\"}}\n{\"id\":2,\"name\":\"Ervin Howell\",\"username\":\"Antonette\",\"email\":\"Shanna@melissa.tv\",\"address\":{\"street\":\"Victor Plains\",\"suite\":\"Suite 879\",\"city\":\"Wisokyburgh\",\"zipcode\":\"90566-7771\",\"geo\":{\"lat\":\"-43.9509\",\"lng\":\"-34.4618\"}},\"phone\":\"010-692-6593 x09125\",\"website\":\"anastasia.net\",\"company\":{\"name\":\"Deckow-Crist\",\"catchPhrase\":\"Proactive didactic contingency\",\"bs\":\"synergize scalable supply-chains\"}}\n';\n\nSELECT id, name, username, email, street, suite,  zipcode,lat,lng,phone,website,website,companyname,catchPhrase,bs\nFROM OPENJSON(@json)  \n  WITH (\n    id INT '$.id',\n    name NVARCHAR(50) '$.name',\n    username NVARCHAR(50) '$.username',  \n    email NVARCHAR(50) '$.email',  \n    street NVARCHAR(50) '$.address.street',  \n    suite NVARCHAR(50) '$.address.suite',  \n    zipcode NVARCHAR(50) '$.address.zipcode',  \n    lat NVARCHAR(50) '$.address.geo.lat', \n    lng NVARCHAR(50) '$.address.geo.lng', \n    phone NVARCHAR(50) '$.phone', \n    website NVARCHAR(50) '$.website', \n    companyname NVARCHAR(50) '$.company.name',\n    catchPhrase NVARCHAR(50) '$.company.catchPhrase',  \n       bs NVARCHAR(max) '$.company.bs' AS JSON \n        /*Note here you use NVARCHAR(MAX) as the data type for the attribute \n            with nested complex object. In the next OPENJSON you can \n            then parse this JSON again using the regular methods.\n        */\n  ) \n\n  OUTER APPLY OPENJSON(bs)\n  WITH (bs1 NVARCHAR(8) '$')\n    /*Since the entire value of the array element is a string value, \n    you can just use the $ notation to get the value.*/\n;",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "dedicatedsqlpool",
+				"poolName": "dedicatedsqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

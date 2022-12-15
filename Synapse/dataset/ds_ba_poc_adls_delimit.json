@@ -1,0 +1,45 @@
+{
+	"name": "ds_ba_poc_adls_delimit",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "nithin-synapse-workspace-WorkspaceDefaultStorage",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"dsparamFileName": {
+				"type": "string"
+			},
+			"dsparamContainerName": {
+				"type": "string"
+			},
+			"dsparamDirectoryName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().dsparamFileName",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().dsparamDirectoryName",
+					"type": "Expression"
+				},
+				"fileSystem": {
+					"value": "@dataset().dsparamContainerName",
+					"type": "Expression"
+				}
+			},
+			"columnDelimiter": "|",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": ""
+		},
+		"schema": []
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 8",
+	"properties": {
+		"content": {
+			"query": "SELECT TOP 100\n    /*Scalar attributes extraction using JSON_VALUE*/\n    JSON_VALUE(jsonContent, '$.id') AS id\n    ,JSON_VALUE(jsonContent, '$.name') AS name\n    ,JSON_VALUE(jsonContent, '$.username') AS username\n    ,JSON_VALUE(jsonContent, '$.email') AS email\n    ,JSON_VALUE(jsonContent, '$.address') AS address\n    /*Scalar attributes extraction from a nested array of objects via OPENJSON and JSON_QUERY*/\n    , [NestedArray].[street]\n    , [NestedArray].[suite]\n     , [NestedArray].[city]\n          , [NestedArray].[zipcode]\nFROM\n    OPENROWSET(\n        BULK 'https://datalakestoragenithin.dfs.core.windows.net/restapi/user.json',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b',\n        ROWTERMINATOR = '0x0b'\n    )\n    WITH(\n        [jsonContent] nvarchar(MAX) /*This now contains the full JSON document from the file. Note the datatype is varchar(MAX).*/\n    ) AS [result]\nCROSS APPLY OPENJSON \n    /*Use JSON_QUERY here because we are querying a nested array, so we cant use JSON_VALUE.\n    We perform JSON_QUERY on the [result].[JSONDocument] field since that is the column with the full JSON Document we want to extract dat from. \n    The path to the attribute is using the normal path to the attribute name that contains the array */\n    (JSON_QUERY([jsonContent], '$.address')) /*Note, if you want only the top most record from this array, replace this line with \"(JSON_QUERY([jsonContent], '$.attribute_with_nested_array[0]'))\"*/\nWITH(\n    [street] varchar(255) '$.street',\n    [suite] varchar(255) '$.suite',\n    [city] varchar(255) '$.city',\n    [zipcode] varchar(255) '$.zipcode'\n   \n) AS [NestedArray]\n    CROSS APPLY OPENJSON \n        (JSON_QUERY([jsonContent], '$.geo'))  as  OPENJSON2\n        WITH(\n        [lat] varchar(255) '$.lat',\n        [lng] varchar(255) '$.lng'\n    \n         ) AS [NestedArray2]",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

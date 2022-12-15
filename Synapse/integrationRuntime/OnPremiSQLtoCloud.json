@@ -1,0 +1,6 @@
+{
+	"name": "OnPremiSQLtoCloud",
+	"properties": {
+		"type": "SelfHosted"
+	}
+}

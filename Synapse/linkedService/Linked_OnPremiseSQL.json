@@ -1,0 +1,16 @@
+{
+	"name": "Linked_OnPremiseSQL",
+	"type": "Microsoft.Synapse/workspaces/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "SqlServer",
+		"typeProperties": {
+			"connectionString": "integrated security=False;data source=LAP00287\\MSSQLSERVER01;initial catalog=AdventureWorks2019;user id=nithumgm",
+			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJlNTE4NjkzNC04ODJmLTRjODUtODcyZi1jNzY0ZGZjMjAzOWIiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+		},
+		"connectVia": {
+			"referenceName": "OnPremiSQLtoCloud",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

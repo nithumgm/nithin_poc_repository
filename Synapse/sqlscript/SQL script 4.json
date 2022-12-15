@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 4",
+	"properties": {
+		"content": {
+			"query": "CREATE PROCEDURE [Sales].[SP_MergefromRawtoGold]\n    (@SourceSchemaName VARCHAR(100),\n\t@DesSchemaName VARCHAR(100),\n    @TableName VARCHAR(100),\n\t@ColumnDetails1 VARCHAR(MAX),\n\t@ColumnDetails2 VARCHAR(MAX),\n\t@MappingColumnName VARCHAR(100)\n\t)\nAS\n\nDECLARE @SQL VARCHAR(MAX),@ColumnDetails3 VARCHAR(MAX)\n\nSET @ColumnDetails3 =REPLACE(@ColumnDetails2 ,'Source.','')\n\nSET @SQL='\nMERGE '+@DesSchemaName+'.'+@TableName+' AS Target\nUSING  '+@SourceSchemaName+'.'+@TableName+' AS Source\nON (Source.'+@MappingColumnName+' = Target.'+@MappingColumnName+')\n\nWHEN MATCHED THEN\n    UPDATE SET '+@ColumnDetails1+'\nWHEN NOT MATCHED BY TARGET THEN\n    INSERT ('+@ColumnDetails3+')\n    VALUES('+@ColumnDetails2+''');'\n\n\n\tEXEC(@sql)\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "dedicatedsqlpool",
+				"poolName": "dedicatedsqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
