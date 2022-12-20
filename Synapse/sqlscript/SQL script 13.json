@@ -2,13 +2,13 @@
 	"name": "SQL script 13",
 	"properties": {
 		"content": {
-			"query": "select * from sales.salesorderdetail",
+			"query": " select*\n    \nfrom openrowset(\n        BULK 'https://datalakestoragenithin.dfs.core.windows.net/restapi/user.json',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b',\n        ROWTERMINATOR = '0x0A'\n    ) with (\n        doc nvarchar(max)\n    ) as [result]\n    CROSS APPLY OPENJSON(doc)\n\n\n",
 			"metadata": {
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "dedicatedsqlpool",
-				"poolName": "dedicatedsqlpool"
+				"databaseName": "master",
+				"poolName": "Built-in"
 			},
 			"resultLimit": 5000
 		},
