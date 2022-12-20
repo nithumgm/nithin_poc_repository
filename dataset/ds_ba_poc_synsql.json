@@ -1,0 +1,12 @@
+{
+	"name": "ds_ba_poc_synsql",
+	"properties": {
+		"annotations": [],
+		"type": "SqlPoolTable",
+		"schema": [],
+		"sqlPool": {
+			"referenceName": "nithin_poc_sqlpool",
+			"type": "SqlPoolReference"
+		}
+	}
+}
