@@ -110,6 +110,12 @@
 								"secureInput": false
 							},
 							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": {
+									"value": "@item().StoredProcedureName",
+									"type": "Expression"
+								}
+							},
 							"linkedServiceName": {
 								"referenceName": "ls_synapsesql_poc",
 								"type": "LinkedServiceReference",
