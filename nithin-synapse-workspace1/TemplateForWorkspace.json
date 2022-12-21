@@ -1,0 +1,780 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Workspace name",
+			"defaultValue": "nithin-synapse-workspace1"
+		},
+		"ls_adlsgen2_poc_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'ls_adlsgen2_poc'"
+		},
+		"ls_synapsesql_poc_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ls_synapsesql_poc'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=@{linkedService().serverName};Initial Catalog=@{linkedService().databaseName};User ID=@{linkedService().userName};Password=@{linkedService().password}"
+		},
+		"nithin-synapse-workspace1-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'nithin-synapse-workspace1-WorkspaceDefaultSqlServer'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:nithin-synapse-workspace1.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"ls_adlsgen2_poc_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://nithindatalakestorage.dfs.core.windows.net/"
+		},
+		"ls_restapi_ba_poc_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "@{linkedService().BaseURL}"
+		},
+		"nithin-synapse-workspace1-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://nithindatalakestorage.dfs.core.windows.net"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/CopyfromSalesForcetoRaw')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupforSynapseServerDetails",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_adls_delimit",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "SynSQLServerDetails.json",
+									"dsparamContainerName": "poc",
+									"dsparamDirectoryName": "configfiles"
+								}
+							}
+						}
+					},
+					{
+						"name": "Copy Json using RestAPI",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupforSynapseServerDetails",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET",
+								"paginationRules": {
+									"supportRFC5988": "true"
+								}
+							},
+							"sink": {
+								"type": "JsonSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "JsonWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_ba_poc_restapi_json",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamBaseURL": "https://jsonplaceholder.typicode.com/users"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_ba_poc_adlsgen2_json",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "user.json",
+									"dsparamContainerName": "poc",
+									"dsparamDirectoryName": "salesforce/jsonfiles"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adls_delimit')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_restapi_json')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adlsgen2_json')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/MergeSalesforceDatafromRawtoGold')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupforServerDetails",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_adlsgen2_json",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "SynSQLServerDetails.json",
+									"dsparamContainerName": "poc",
+									"dsparamDirectoryName": "configfiles"
+								}
+							}
+						}
+					},
+					{
+						"name": "Lookup SPNames",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "LookupforServerDetails",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_adls_delimit",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "sp_config_salesforce.csv",
+									"dsparamContainerName": "poc",
+									"dsparamDirectoryName": "configfiles"
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEach SP",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup SPNames",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup SPNames').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "SPMergeRawtoGold",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": {
+											"value": "@item().StoredProcedureName",
+											"type": "Expression"
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "ls_synapsesql_poc",
+										"type": "LinkedServiceReference",
+										"parameters": {
+											"databaseName": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.DatabaseName",
+												"type": "Expression"
+											},
+											"serverName": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.ServerName",
+												"type": "Expression"
+											},
+											"userName": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.UserName",
+												"type": "Expression"
+											},
+											"password": {
+												"value": "@activity('LookupforServerDetails').output.firstRow.Password",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adlsgen2_json')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adls_delimit')]",
+				"[concat(variables('workspaceId'), '/linkedServices/ls_synapsesql_poc')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_adls_delimit')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adlsgen2_poc",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"dsparamFileName": {
+						"type": "string"
+					},
+					"dsparamContainerName": {
+						"type": "string"
+					},
+					"dsparamDirectoryName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().dsparamFileName",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().dsparamDirectoryName",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().dsparamContainerName",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": "|",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": ""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_adlsgen2_poc')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_adlsgen2_json')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adlsgen2_poc",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"dsparamFileName": {
+						"type": "string"
+					},
+					"dsparamContainerName": {
+						"type": "string"
+					},
+					"dsparamDirectoryName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().dsparamFileName",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().dsparamDirectoryName",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().dsparamContainerName",
+							"type": "Expression"
+						}
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_adlsgen2_poc')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_restapi_json')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_restapi_ba_poc",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"BaseURL": {
+							"value": "@dataset().dsparamBaseURL",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"dsparamBaseURL": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_restapi_ba_poc')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_synsql')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "SqlPoolTable",
+				"schema": [],
+				"typeProperties": {},
+				"sqlPool": {
+					"referenceName": "nithin_poc_sqlpool",
+					"type": "SqlPoolReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/sqlPools/nithin_poc_sqlpool')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ls_adlsgen2_poc')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ls_adlsgen2_poc_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('ls_adlsgen2_poc_accountKey')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ls_restapi_ba_poc')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"BaseURL": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('ls_restapi_ba_poc_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ls_synapsesql_poc')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"databaseName": {
+						"type": "string"
+					},
+					"serverName": {
+						"type": "string"
+					},
+					"userName": {
+						"type": "string"
+					},
+					"password": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('ls_synapsesql_poc_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nithin-synapse-workspace1-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('nithin-synapse-workspace1-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nithin-synapse-workspace1-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('nithin-synapse-workspace1-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
+			"type": "Microsoft.Synapse/workspaces/credentials",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "ManagedIdentity",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/ReadJson')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\n\n select\n    JSON_VALUE(doc, '$.id') AS id,\n    JSON_VALUE(doc, '$.name') AS name,\n    JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address.street') AS street,\n    JSON_VALUE(doc, '$.address.suite') AS suite,\n    JSON_VALUE(doc, '$.address.zipcode') AS zipcode,\n    JSON_VALUE(doc,'$.address.geo.lat') as Lat,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc, '$.phone') AS phone,\n    JSON_VALUE(doc, '$.website') AS website,\n    JSON_VALUE(doc, '$.company.name') AS companyname,\n    JSON_VALUE(doc, '$.company.catchPhrase') AS catchPhrase,\n   JSON_VALUE(doc, '$.company.bs') AS bs\nfrom openrowset(\n        BULK 'https://nithindatalakestorage.dfs.core.windows.net/poc/salesforce/jsonfiles/user.json',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b',\n        ROWTERMINATOR = '0x0A'\n    ) with (doc nvarchar(max)) as rows\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 1')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\n\nCREATE EXTERNAL TABLE ext.UserDetails(\n           StoredProcedureName nvarchar(100)\n)\nWITH (\n    LOCATION='salesforce/jsonfiles/user.json',\n    DATA_SOURCE=ds_ba_poc_adls,\n    FILE_FORMAT=csvFileformat\n);\n\n\n\n\nCREATE EXTERNAL FILE FORMAT jsonFileformat\nWITH (\n    FORMAT_TYPE = json,\n    FORMAT_OPTIONS (\n      FIELD_TERMINATOR = '0x0b',\n      STRING_DELIMITER = '0x0A',\n          USE_TYPE_DEFAULT = FALSE,\n      ENCODING = 'UTF8' )\n);\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "nithin_poc_sqlpool",
+						"poolName": "nithin_poc_sqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 3')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "--IF NOT EXISTS (SELECT * FROM sys.objects O JOIN sys.schemas S ON O.schema_id = S.schema_id \n--WHERE O.NAME = 'NYCTaxiTripSmall' AND O.TYPE = 'U' AND S.NAME = 'dbo')\n\n\nCREATE TABLE dbo.#NYCTaxiTripSmall\n    (\n     [BusinessEntityID] int\n    )\nWITH\n    (\n    DISTRIBUTION = ROUND_ROBIN,\n     CLUSTERED COLUMNSTORE INDEX\n     -- HEAP\n    )\nGO\n\nCOPY INTO dbo.#NYCTaxiTripSmall\n(BusinessEntityID)\nFROM 'https://nithindatalakestorage.dfs.core.windows.net/poc/test/SalesPerson_CT.csv'\nWITH\n(\n    FILE_TYPE = 'CSV'\n    --,FILE_FORMAT='csvFileformat'\n    ,FIRSTROW = 2\n    ,MAXERRORS = 0\n   , FIELDTERMINATOR ='|'\n   , ROWTERMINATOR ='\\n'\n    ,IDENTITY_INSERT = 'OFF'\n) \n \n\n select * from  dbo.#NYCTaxiTripSmall\n ",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "nithin_poc_sqlpool",
+						"poolName": "nithin_poc_sqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 5')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "--IF NOT EXISTS (SELECT * FROM sys.objects O JOIN sys.schemas S ON O.schema_id = S.schema_id \n--WHERE O.NAME = 'NYCTaxiTripSmall' AND O.TYPE = 'U' AND S.NAME = 'dbo')\n\nCREATE TABLE dbo.#TempTable\n    (\n     [doc] nvarchar(4000) \n    )\nWITH\n    (    DISTRIBUTION = ROUND_ROBIN,\n     CLUSTERED COLUMNSTORE INDEX\n     -- HEAP\n    )\nGO\nCOPY INTO dbo.#TempTable  \n \n\tFROM 'https://nithindatalakestorage.dfs.core.windows.net/poc/salesforce/jsonfiles/'\n\tWITH (\n      \n\t\tFILE_TYPE = 'CSV'\n\t\t,fieldterminator ='0x0b'\n        ,fieldquote = '0x0b'\n        ,rowterminator = '0x0A'  /* Override This if a Json document and not single object */\n\t\t,CREDENTIAL=(IDENTITY= 'Managed Identity')        \n\t)\n    ;\n\n    --select * from dbo.#TempTable  \n \n SELECT  \n  JSON_VALUE(doc, '$.id') AS id, \n  JSON_VALUE(doc, '$.name') AS name,\n  JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address.street') AS street,\n    JSON_VALUE(doc, '$.address.suite') AS suite,\n    JSON_VALUE(doc, '$.address.zipcode') AS zipcode,\n    JSON_VALUE(doc,'$.address.geo.lat') as Lat,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc, '$.phone') AS phone,\n    JSON_VALUE(doc, '$.website') AS website,\n    JSON_VALUE(doc, '$.company.name') AS companyname,\n    JSON_VALUE(doc, '$.company.catchPhrase') AS catchPhrase,\n   JSON_VALUE(doc, '$.company.bs') AS bs   \nFROM dbo.#TempTable ",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "nithin_poc_sqlpool",
+						"poolName": "nithin_poc_sqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 6')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": " \ncreate  PROC  [SP_MergeSalesforcetoGoldLayer]  \n  as\n\n  Begin\n\n\nCREATE TABLE dbo.#TempTable\n    (\n     [doc] nvarchar(4000) \n    )\nWITH\n    (    DISTRIBUTION = ROUND_ROBIN,\n     CLUSTERED COLUMNSTORE INDEX\n     -- HEAP\n    )\nGO\n;\nCOPY INTO dbo.#TempTable  \n \n\tFROM 'https://nithindatalakestorage.dfs.core.windows.net/poc/salesforce/jsonfiles/'\n\tWITH (\n      \n\t\tFILE_TYPE = 'CSV'\n\t\t,fieldterminator ='0x0b'\n        ,fieldquote = '0x0b'\n        ,rowterminator = '0x0A'  /* Override This if a Json document and not single object */\n\t\t,CREDENTIAL=(IDENTITY= 'Managed Identity')        \n\t)\n    ;\n \n  with SalesForceJsonData_CT \n   as  ( \nSELECT  \n  JSON_VALUE(doc, '$.id') AS id, \n  JSON_VALUE(doc, '$.name') AS name,\n  JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address.street') AS street,\n    JSON_VALUE(doc, '$.address.suite') AS suite,\n    JSON_VALUE(doc, '$.address.zipcode') AS zipcode,\n    JSON_VALUE(doc,'$.address.geo.lat') as Lat,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc, '$.phone') AS phone,\n    JSON_VALUE(doc, '$.website') AS website,\n    JSON_VALUE(doc, '$.company.name') AS companyname,\n    JSON_VALUE(doc, '$.company.catchPhrase') AS catchPhrase,\n   JSON_VALUE(doc, '$.company.bs') AS bs   \nFROM dbo.#TempTable)\n\n\nMERGE into [gold].[SalesForceJsonData] AS TARGET\nUSING SalesForceJsonData_CT AS id \nON (TARGET.id = SOURCE.BusinessEntityID) \n--When records are matched, update the records if there is any change\nWHEN MATCHED -----AND TARGET.ProductName <> SOURCE.ProductName OR TARGET.Rate <> SOURCE.Rate \nTHEN UPDATE SET\nTARGET.name=SOURCE.name,\nTARGET.username=SOURCE.username,\nTARGET.email=SOURCE.email,\nTARGET.street=SOURCE.street,\nTARGET.suite=SOURCE.suite,\nTARGET.zipcode=SOURCE.zipcode,\nTARGET.Lat=SOURCE.Lat,\nTARGET.lng=SOURCE.lng ,\nTARGET.phone=SOURCE.phone ,\nTARGET.website=SOURCE.website ,\nTARGET.companyname=SOURCE.companyname ,\nTARGET.catchPhrase=SOURCE.catchPhrase ,\nTARGET.bs=SOURCE.bs \n--When no records are matched, insert the incoming records from source table to target table\nWHEN NOT MATCHED BY TARGET \nTHEN INSERT (id,name,username,email,street,suite,zipcode,Lat,lng,phone,website,companyname,catchPhrase,bs) \nVALUES (\nSource.id,\nSource.name,\nSource.username,\nSource.email,\nSource.street,\nSource.suite,\nSource.zipcode,\nSource.Lat,\nSource.lng,\nSource.phone,\nSource.website,\nSource.companyname,\nSource.catchPhrase,\nSource.bs)\n \n/* 3. Performing the DELETE operation */\n \n    /* When no records are matched with SOURCE table\n       Then delete the records from the target table */\n    WHEN NOT MATCHED BY SOURCE\n    THEN DELETE;\n\n\tEND\n ",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "nithin_poc_sqlpool",
+						"poolName": "nithin_poc_sqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 7')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": " \n\nALTER PROC  [SP_MergeSalesforcetoGoldLayer] \nAS\n\nSET NOCOUNT ON;\n\n \nIF OBJECT_ID('tempdb..#TempTable') IS  NULL\n BEGIN\n CREATE TABLE #TempTable\n    (\n     [doc] nvarchar(4000) \n    )\nWITH\n    (    DISTRIBUTION = ROUND_ROBIN,\n     CLUSTERED COLUMNSTORE INDEX\n     -- HEAP\n    )\n\nCOPY INTO #TempTable  \n \n\tFROM 'https://nithindatalakestorage.dfs.core.windows.net/poc/salesforce/jsonfiles/'\n\tWITH (\n      \n\t\tFILE_TYPE = 'CSV'\n\t\t,fieldterminator ='0x0b'\n        ,fieldquote = '0x0b'\n        ,rowterminator = '0x0A'   \n\t\t,CREDENTIAL=(IDENTITY= 'Managed Identity')        \n\t)\n  END\n; \n  with SalesForceJsonData_CT \n   as  ( \nSELECT  \n  JSON_VALUE(doc, '$.id') AS id, \n  JSON_VALUE(doc, '$.name') AS name,\n  JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address.street') AS street,\n    JSON_VALUE(doc, '$.address.suite') AS suite,\n    JSON_VALUE(doc, '$.address.zipcode') AS zipcode,\n    JSON_VALUE(doc,'$.address.geo.lat') as Lat,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc, '$.phone') AS phone,\n    JSON_VALUE(doc, '$.website') AS website,\n    JSON_VALUE(doc, '$.company.name') AS companyname,\n    JSON_VALUE(doc, '$.company.catchPhrase') AS catchPhrase,\n   JSON_VALUE(doc, '$.company.bs') AS bs   \nFROM dbo.#TempTable)\n --------------------------------Perform Merge Operation-------------------------------------------------------------------------------------\n \nMERGE [gold].[SalesForceJsonData] AS TARGET\nUSING SalesForceJsonData_CT AS SOURCE \nON (TARGET.id = SOURCE.id) \n--When records are matched, update the records if there is any change\nWHEN MATCHED -----AND TARGET.ProductName <> SOURCE.ProductName OR TARGET.Rate <> SOURCE.Rate \nTHEN UPDATE SET\nTARGET.name=SOURCE.name,\nTARGET.username=SOURCE.username,\nTARGET.email=SOURCE.email,\nTARGET.street=SOURCE.street,\nTARGET.suite=SOURCE.suite,\nTARGET.zipcode=SOURCE.zipcode,\nTARGET.Lat=SOURCE.Lat,\nTARGET.lng=SOURCE.lng ,\nTARGET.phone=SOURCE.phone ,\nTARGET.website=SOURCE.website ,\nTARGET.companyname=SOURCE.companyname ,\nTARGET.catchPhrase=SOURCE.catchPhrase ,\nTARGET.bs=SOURCE.bs \n--When no records are matched, insert the incoming records from source table to target table\nWHEN NOT MATCHED BY TARGET \nTHEN INSERT (id,name,username,email,street,suite,zipcode,Lat,lng,phone,website,companyname,catchPhrase,bs) \nVALUES (\nSource.id,\nSource.name,\nSource.username,\nSource.email,\nSource.street,\nSource.suite,\nSource.zipcode,\nSource.Lat,\nSource.lng,\nSource.phone,\nSource.website,\nSource.companyname,\nSource.catchPhrase,bs)\n\n    WHEN NOT MATCHED BY SOURCE\n    THEN DELETE;\n\n \nGO",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "nithin_poc_sqlpool",
+						"poolName": "nithin_poc_sqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 8')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": " ",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "nithin_poc_sqlpool",
+						"poolName": "nithin_poc_sqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/nithin_poc_sqlpool')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "australiaeast"
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 9')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "nithin_poc_sqlpool",
+						"poolName": "nithin_poc_sqlpool"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
