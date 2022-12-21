@@ -23,15 +23,18 @@
 				"userProperties": [],
 				"typeProperties": {
 					"source": {
-						"type": "SqlPoolSource",
-						"sqlReaderQuery": {
-							"value": "select StoredProcedureName\nfrom ext.ConfigSPforMerge\n",
-							"type": "Expression"
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
 						},
-						"queryTimeout": "02:00:00"
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
 					},
 					"dataset": {
-						"referenceName": "ds_ba_poc_synsql",
+						"referenceName": "ds_ba_poc_adls_delimit",
 						"type": "DatasetReference"
 					},
 					"firstRowOnly": false
