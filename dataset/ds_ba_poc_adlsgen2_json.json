@@ -1,0 +1,40 @@
+{
+	"name": "ds_ba_poc_adlsgen2_json",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_adlsgen2_poc",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"dsparamFileName": {
+				"type": "string"
+			},
+			"dsparamContainerName": {
+				"type": "string"
+			},
+			"dsparamDirectoryName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().dsparamFileName",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().dsparamDirectoryName",
+					"type": "Expression"
+				},
+				"fileSystem": {
+					"value": "@dataset().dsparamContainerName",
+					"type": "Expression"
+				}
+			}
+		},
+		"schema": {}
+	}
+}

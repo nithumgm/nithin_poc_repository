@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 1",
+	"properties": {
+		"content": {
+			"query": "\n\nCREATE EXTERNAL TABLE ext.UserDetails(\n           StoredProcedureName nvarchar(100)\n)\nWITH (\n    LOCATION='salesforce/jsonfiles/user.json',\n    DATA_SOURCE=ds_ba_poc_adls,\n    FILE_FORMAT=csvFileformat\n);\n\n\n\n\nCREATE EXTERNAL FILE FORMAT jsonFileformat\nWITH (\n    FORMAT_TYPE = json,\n    FORMAT_OPTIONS (\n      FIELD_TERMINATOR = '0x0b',\n      STRING_DELIMITER = '0x0A',\n          USE_TYPE_DEFAULT = FALSE,\n      ENCODING = 'UTF8' )\n);\n\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
