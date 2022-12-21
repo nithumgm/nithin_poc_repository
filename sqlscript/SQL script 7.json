@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 7",
+	"properties": {
+		"content": {
+			"query": " \n\nALTER PROC  [SP_MergeSalesforcetoGoldLayer] \nAS\n\nSET NOCOUNT ON;\n\n \nIF OBJECT_ID('tempdb..#TempTable') IS  NULL\n BEGIN\n CREATE TABLE #TempTable\n    (\n     [doc] nvarchar(4000) \n    )\nWITH\n    (    DISTRIBUTION = ROUND_ROBIN,\n     CLUSTERED COLUMNSTORE INDEX\n     -- HEAP\n    )\n\nCOPY INTO #TempTable  \n \n\tFROM 'https://nithindatalakestorage.dfs.core.windows.net/poc/salesforce/jsonfiles/'\n\tWITH (\n      \n\t\tFILE_TYPE = 'CSV'\n\t\t,fieldterminator ='0x0b'\n        ,fieldquote = '0x0b'\n        ,rowterminator = '0x0A'   \n\t\t,CREDENTIAL=(IDENTITY= 'Managed Identity')        \n\t)\n  END\n; \n  with SalesForceJsonData_CT \n   as  ( \nSELECT  \n  JSON_VALUE(doc, '$.id') AS id, \n  JSON_VALUE(doc, '$.name') AS name,\n  JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address.street') AS street,\n    JSON_VALUE(doc, '$.address.suite') AS suite,\n    JSON_VALUE(doc, '$.address.zipcode') AS zipcode,\n    JSON_VALUE(doc,'$.address.geo.lat') as Lat,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc, '$.phone') AS phone,\n    JSON_VALUE(doc, '$.website') AS website,\n    JSON_VALUE(doc, '$.company.name') AS companyname,\n    JSON_VALUE(doc, '$.company.catchPhrase') AS catchPhrase,\n   JSON_VALUE(doc, '$.company.bs') AS bs   \nFROM dbo.#TempTable)\n --------------------------------Perform Merge Operation-------------------------------------------------------------------------------------\n \nMERGE [gold].[SalesForceJsonData] AS TARGET\nUSING SalesForceJsonData_CT AS SOURCE \nON (TARGET.id = SOURCE.id) \n--When records are matched, update the records if there is any change\nWHEN MATCHED -----AND TARGET.ProductName <> SOURCE.ProductName OR TARGET.Rate <> SOURCE.Rate \nTHEN UPDATE SET\nTARGET.name=SOURCE.name,\nTARGET.username=SOURCE.username,\nTARGET.email=SOURCE.email,\nTARGET.street=SOURCE.street,\nTARGET.suite=SOURCE.suite,\nTARGET.zipcode=SOURCE.zipcode,\nTARGET.Lat=SOURCE.Lat,\nTARGET.lng=SOURCE.lng ,\nTARGET.phone=SOURCE.phone ,\nTARGET.website=SOURCE.website ,\nTARGET.companyname=SOURCE.companyname ,\nTARGET.catchPhrase=SOURCE.catchPhrase ,\nTARGET.bs=SOURCE.bs \n--When no records are matched, insert the incoming records from source table to target table\nWHEN NOT MATCHED BY TARGET \nTHEN INSERT (id,name,username,email,street,suite,zipcode,Lat,lng,phone,website,companyname,catchPhrase,bs) \nVALUES (\nSource.id,\nSource.name,\nSource.username,\nSource.email,\nSource.street,\nSource.suite,\nSource.zipcode,\nSource.Lat,\nSource.lng,\nSource.phone,\nSource.website,\nSource.companyname,\nSource.catchPhrase,bs)\n\n    WHEN NOT MATCHED BY SOURCE\n    THEN DELETE;\n\n \nGO",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
