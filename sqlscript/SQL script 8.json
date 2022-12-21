@@ -2,7 +2,7 @@
 	"name": "SQL script 8",
 	"properties": {
 		"content": {
-			"query": "\n\n\nexec SP_MergeSalesforcetoGoldLayer\n\nselect * from gold.SalesForceJsonData",
+			"query": " ",
 			"metadata": {
 				"language": "sql"
 			},
