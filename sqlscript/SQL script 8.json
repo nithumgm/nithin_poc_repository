@@ -2,7 +2,7 @@
 	"name": "SQL script 8",
 	"properties": {
 		"content": {
-			"query": " ",
+			"query": " select * from gold.SalesForceJsonData",
 			"metadata": {
 				"language": "sql"
 			},
