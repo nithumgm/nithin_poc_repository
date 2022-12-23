@@ -1,0 +1,89 @@
+{
+	"name": "copyfromcsvtoparquet",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy data1",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "ParquetSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "ParquetWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"enableSkipIncompatibleRow": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "PK\u0003\u0004",
+									"type": "String",
+									"physicalType": "String"
+								},
+								"sink": {
+									"name": "PK\u0003\u0004",
+									"type": "String",
+									"physicalType": "UTF8"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_ba_poc_adls_delimit",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "tables.csv",
+							"dsparamContainerName": "poc",
+							"dsparamDirectoryName": "inputdata"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_ba_poc_adls_parquet",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "tabless",
+							"dsparamContainerName": "poc",
+							"dsparamDirectoryName": "resultdata"
+						}
+					}
+				]
+			}
+		],
+		"annotations": []
+	}
+}

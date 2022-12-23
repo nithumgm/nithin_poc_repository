@@ -1,5 +1,5 @@
 {
-	"name": "ds_ba_poc_adls_delimit",
+	"name": "ds_ba_poc_adls_parquet",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "ls_adlsgen2vijeshma_poc",
@@ -17,7 +17,7 @@
 			}
 		},
 		"annotations": [],
-		"type": "DelimitedText",
+		"type": "Parquet",
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
@@ -34,10 +34,7 @@
 					"type": "Expression"
 				}
 			},
-			"columnDelimiter": ",",
-			"escapeChar": "\\",
-			"firstRowAsHeader": true,
-			"quoteChar": ""
+			"compressionCodec": "snappy"
 		},
 		"schema": []
 	}
