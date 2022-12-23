@@ -1,6 +1,118 @@
 {
-	"name": "Pipeline 1",
+	"name": "SendEmailAlerts",
 	"properties": {
+		"activities": [
+			{
+				"name": "Copy data1",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_ba_poc_adls_delimit",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "test",
+							"dsparamContainerName": "test",
+							"dsparamDirectoryName": "test",
+							"dsparamColumDelimitter": "test"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_ba_poc_adls_delimit",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "test",
+							"dsparamContainerName": "test",
+							"dsparamDirectoryName": "test",
+							"dsparamColumDelimitter": "test"
+						}
+					}
+				]
+			},
+			{
+				"name": "Send Email",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Copy data1",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "POST",
+					"headers": {
+						"Content-Type": "application/json"
+					},
+					"body": {
+						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Copy data1').Error.Message}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n}",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"pipelineParamRecEmail": {
+				"type": "string"
+			}
+		},
 		"annotations": []
 	}
 }
