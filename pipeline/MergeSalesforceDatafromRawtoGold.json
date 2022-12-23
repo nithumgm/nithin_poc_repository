@@ -74,7 +74,8 @@
 						"parameters": {
 							"dsparamFileName": "sp_config_salesforce.csv",
 							"dsparamContainerName": "poc",
-							"dsparamDirectoryName": "configfiles"
+							"dsparamDirectoryName": "configfiles",
+							"dsparamColumDelimitter": "|"
 						}
 					},
 					"firstRowOnly": false
