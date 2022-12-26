@@ -45,7 +45,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').Error.Message}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamTitleSucess}\"\n}",
+						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').output.ErrorMessage}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamTitleSucess}\"\n}",
 						"type": "Expression"
 					}
 				}
@@ -80,7 +80,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').output.Error.Message}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnFailure}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamTitleFailure}\"\n}",
+						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').output.ErrorMessage}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnFailure}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamTitleFailure}\"\n}",
 						"type": "Expression"
 					}
 				}
