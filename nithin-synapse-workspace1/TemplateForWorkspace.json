@@ -320,7 +320,7 @@
 								"Content-Type": "application/json"
 							},
 							"body": {
-								"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleSucess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').error.Message}\"\n}",
+								"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleSucess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"Pipeline Executed Successfully\"\n}",
 								"type": "Expression"
 							}
 						}
