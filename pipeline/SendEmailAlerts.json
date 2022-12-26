@@ -45,7 +45,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleSucess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"2022\"\n}",
+						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleSucess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\"\n}",
 						"type": "Expression"
 					}
 				}
@@ -80,7 +80,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleFailure}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnFailure}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"2022\"\n}",
+						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleFailure}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnFailure}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\"\n}",
 						"type": "Expression"
 					}
 				}
