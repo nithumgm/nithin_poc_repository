@@ -45,7 +45,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleSucess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\"\n}",
+						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleSucess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"Test\"\n}",
 						"type": "Expression"
 					}
 				}
@@ -80,7 +80,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleFailure}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnFailure}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\"\n}",
+						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleFailure}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnFailure}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').error.Message}\"\"\n}",
 						"type": "Expression"
 					}
 				}
@@ -106,6 +106,14 @@
 			"pipelineParamTitleFailure": {
 				"type": "string",
 				"defaultValue": "Pipeline Execution Failed"
+			}
+		},
+		"variables": {
+			"tes": {
+				"type": "String"
+			},
+			"errmsg": {
+				"type": "String"
 			}
 		},
 		"annotations": []

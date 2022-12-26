@@ -1,0 +1,46 @@
+{
+	"name": "Pipeline 1",
+	"properties": {
+		"activities": [
+			{
+				"name": "Execute Pipeline1",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "TestFailure",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Set variable1",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Execute Pipeline1",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "errmsg",
+					"value": {
+						"value": "@activity('Execute Pipeline1').error.Message",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"variables": {
+			"errmsg": {
+				"type": "String"
+			}
+		},
+		"annotations": []
+	}
+}
