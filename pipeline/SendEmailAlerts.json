@@ -102,7 +102,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Copy data1').Error.Message}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n}",
+						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Copy data1').Error.Message}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n    \"Color\":\"@{pipeline().parameters.pipelineParamColor}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamTitle}\"\n}",
 						"type": "Expression"
 					}
 				}
@@ -110,6 +110,12 @@
 		],
 		"parameters": {
 			"pipelineParamRecEmail": {
+				"type": "string"
+			},
+			"pipelineParamColor": {
+				"type": "string"
+			},
+			"pipelineParamTitle": {
 				"type": "string"
 			}
 		},
