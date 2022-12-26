@@ -45,51 +45,9 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "LookupforSynapseServerDetails",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"dataset": {
-								"referenceName": "ds_ba_poc_adls_delimit",
-								"type": "DatasetReference",
-								"parameters": {
-									"dsparamFileName": "SynSQLServerDetails.json",
-									"dsparamContainerName": "poc",
-									"dsparamDirectoryName": "configfiles"
-								}
-							}
-						}
-					},
-					{
 						"name": "Copy Json using RestAPI",
 						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "LookupforSynapseServerDetails",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
+						"dependsOn": [],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -148,7 +106,6 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adls_delimit')]",
 				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_restapi_json')]",
 				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adlsgen2_json')]"
 			]
@@ -231,7 +188,8 @@
 								"parameters": {
 									"dsparamFileName": "sp_config_salesforce.csv",
 									"dsparamContainerName": "poc",
-									"dsparamDirectoryName": "configfiles"
+									"dsparamDirectoryName": "configfiles",
+									"dsparamColumDelimitter": "|"
 								}
 							},
 							"firstRowOnly": false
@@ -313,6 +271,314 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/SendEmailAlerts')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Execute Pipeline1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyfromSalesForcetoRaw",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Send Email On Success",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+							"connectVia": {
+								"referenceName": "AutoResolveIntegrationRuntime",
+								"type": "IntegrationRuntimeReference"
+							},
+							"method": "POST",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"body": {
+								"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleSucess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').error.Message}\"\n}",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Send Email On Failure",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline1",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+							"connectVia": {
+								"referenceName": "AutoResolveIntegrationRuntime",
+								"type": "IntegrationRuntimeReference"
+							},
+							"method": "POST",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"body": {
+								"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleFailure}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnFailure}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').error.Message}\"\n}",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"pipelineParamRecEmail": {
+						"type": "string",
+						"defaultValue": "nithin.kumar@novigosolutions.com"
+					},
+					"pipelineParamColorOnSuccess": {
+						"type": "string",
+						"defaultValue": "green"
+					},
+					"pipelineParamColorOnFailure": {
+						"type": "string",
+						"defaultValue": "red"
+					},
+					"pipelineParamTitleSucess": {
+						"type": "string",
+						"defaultValue": "Pipeline Executed Successfully"
+					},
+					"pipelineParamTitleFailure": {
+						"type": "string",
+						"defaultValue": "Pipeline Execution Failed"
+					}
+				},
+				"variables": {
+					"tes": {
+						"type": "String"
+					},
+					"errmsg": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/CopyfromSalesForcetoRaw')]",
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SendEmailAlerts_copy1')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Execute Pipeline1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyfromSalesForcetoRaw",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Send Email On Success",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+							"connectVia": {
+								"referenceName": "AutoResolveIntegrationRuntime",
+								"type": "IntegrationRuntimeReference"
+							},
+							"method": "POST",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"body": {
+								"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleSucess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"2022\"\n}",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"pipelineParamRecEmail": {
+						"type": "string",
+						"defaultValue": "nithin.kumar@novigosolutions.com"
+					},
+					"pipelineParamColorOnSuccess": {
+						"type": "string",
+						"defaultValue": "green"
+					},
+					"pipelineParamColorOnFailure": {
+						"type": "string",
+						"defaultValue": "red"
+					},
+					"pipelineParamTitleSucess": {
+						"type": "string",
+						"defaultValue": "Pipeline Executed Successfully"
+					},
+					"pipelineParamTitleFailure": {
+						"type": "string",
+						"defaultValue": "Pipeline Execution Failed"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/CopyfromSalesForcetoRaw')]",
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/TestFailure')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy data1",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_ba_poc_adls_delimit",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "test",
+									"dsparamContainerName": "test",
+									"dsparamDirectoryName": "test",
+									"dsparamColumDelimitter": "test"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_ba_poc_adls_delimit",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "test",
+									"dsparamContainerName": "test",
+									"dsparamDirectoryName": "test",
+									"dsparamColumDelimitter": "test"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adls_delimit')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_adls_delimit')]",
 			"type": "Microsoft.Synapse/workspaces/datasets",
 			"apiVersion": "2019-06-01-preview",
@@ -329,6 +595,9 @@
 						"type": "string"
 					},
 					"dsparamDirectoryName": {
+						"type": "string"
+					},
+					"dsparamColumDelimitter": {
 						"type": "string"
 					}
 				},
@@ -733,7 +1002,27 @@
 			"apiVersion": "2019-06-01-preview",
 			"properties": {
 				"content": {
-					"query": " ",
+					"query": " select * from gold.SalesForceJsonData",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "nithin_poc_sqlpool",
+						"poolName": "nithin_poc_sqlpool"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 9')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\n\t--IF NOT EXISTS (SELECT * FROM sys.objects O JOIN sys.schemas S ON O.schema_id = S.schema_id \n--WHERE O.NAME = 'NYCTaxiTripSmall' AND O.TYPE = 'U' AND S.NAME = 'dbo')\n\nCREATE TABLE dbo.#TempTable\n    (\n     [doc] nvarchar(4000) \n    )\nWITH\n    (\n    DISTRIBUTION = ROUND_ROBIN,\n     CLUSTERED COLUMNSTORE INDEX\n     -- HEAP\n    )\nGO\n\nCOPY INTO dbo.#TempTable \n \n\tFROM 'https://nithindatalakestorage.dfs.core.windows.net/poc/salesforce/jsonfiles/'\n\tWITH (\n      \n\t\tFILE_TYPE = 'CSV'\n\t\t,fieldterminator ='0x0b'\n        ,fieldquote = '0x0b'\n        ,rowterminator = '0x0A'  /* Override This if a Json document and not single object */\n\t\t,CREDENTIAL=(IDENTITY= 'Managed Identity')\n        \n\t)\n\n\nselect * from  dbo.#TempTable\n    \nSELECT  \n  JSON_VALUE(doc, '$.id') AS id, \n  JSON_VALUE(doc, '$.name') AS name,\n  JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address.street') AS street,\n    JSON_VALUE(doc, '$.address.suite') AS suite,\n    JSON_VALUE(doc, '$.address.zipcode') AS zipcode,\n    JSON_VALUE(doc,'$.address.geo.lat') as Lat,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc, '$.phone') AS phone,\n    JSON_VALUE(doc, '$.website') AS website,\n    JSON_VALUE(doc, '$.company.name') AS companyname,\n    JSON_VALUE(doc, '$.company.catchPhrase') AS catchPhrase,\n   JSON_VALUE(doc, '$.company.bs') AS bs\nFROM dbo.#TempTable\n ",
 					"metadata": {
 						"language": "sql"
 					},
@@ -758,23 +1047,6 @@
 			},
 			"dependsOn": [],
 			"location": "australiaeast"
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/SQL script 9')]",
-			"type": "Microsoft.Synapse/workspaces/sqlscripts",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"content": {
-					"metadata": {
-						"language": "sql"
-					},
-					"currentConnection": {
-						"databaseName": "nithin_poc_sqlpool",
-						"poolName": "nithin_poc_sqlpool"
-					}
-				}
-			},
-			"dependsOn": []
 		}
 	]
 }
