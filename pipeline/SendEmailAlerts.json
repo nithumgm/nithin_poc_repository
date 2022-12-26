@@ -3,9 +3,29 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Copy data1",
-				"type": "Copy",
+				"name": "Execute Pipeline1",
+				"type": "ExecutePipeline",
 				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "CopyfromSalesForcetoRaw",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Send Email On Success",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Execute Pipeline1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -15,69 +35,27 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"source": {
-						"type": "DelimitedTextSource",
-						"storeSettings": {
-							"type": "AzureBlobFSReadSettings",
-							"recursive": true,
-							"enablePartitionDiscovery": false
-						},
-						"formatSettings": {
-							"type": "DelimitedTextReadSettings"
-						}
+					"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
 					},
-					"sink": {
-						"type": "DelimitedTextSink",
-						"storeSettings": {
-							"type": "AzureBlobFSWriteSettings"
-						},
-						"formatSettings": {
-							"type": "DelimitedTextWriteSettings",
-							"quoteAllText": true,
-							"fileExtension": ".txt"
-						}
+					"method": "POST",
+					"headers": {
+						"Content-Type": "application/json"
 					},
-					"enableStaging": false,
-					"translator": {
-						"type": "TabularTranslator",
-						"typeConversion": true,
-						"typeConversionSettings": {
-							"allowDataTruncation": true,
-							"treatBooleanAsNumber": false
-						}
+					"body": {
+						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').Error.Message}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n    \"Color\":\"@{pipeline().parameters.pipelineParamColor}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamTitleSucess}\"\n}",
+						"type": "Expression"
 					}
-				},
-				"inputs": [
-					{
-						"referenceName": "ds_ba_poc_adls_delimit",
-						"type": "DatasetReference",
-						"parameters": {
-							"dsparamFileName": "test",
-							"dsparamContainerName": "test",
-							"dsparamDirectoryName": "test",
-							"dsparamColumDelimitter": "test"
-						}
-					}
-				],
-				"outputs": [
-					{
-						"referenceName": "ds_ba_poc_adls_delimit",
-						"type": "DatasetReference",
-						"parameters": {
-							"dsparamFileName": "test",
-							"dsparamContainerName": "test",
-							"dsparamDirectoryName": "test",
-							"dsparamColumDelimitter": "test"
-						}
-					}
-				]
+				}
 			},
 			{
-				"name": "Send Email",
+				"name": "Send Email On Failure",
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "Copy data1",
+						"activity": "Execute Pipeline1",
 						"dependencyConditions": [
 							"Failed"
 						]
@@ -102,7 +80,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Copy data1').Error.Message}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n    \"Color\":\"@{pipeline().parameters.pipelineParamColor}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamTitle}\"\n}",
+						"value": "{\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').Error.Message}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\"\n    \"Color\":\"@{pipeline().parameters.pipelineParamColor}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamTitleFailure}\"\n}",
 						"type": "Expression"
 					}
 				}
@@ -115,7 +93,10 @@
 			"pipelineParamColor": {
 				"type": "string"
 			},
-			"pipelineParamTitle": {
+			"pipelineParamTitleSucess": {
+				"type": "string"
+			},
+			"pipelineParamTitleFailure": {
 				"type": "string"
 			}
 		},
