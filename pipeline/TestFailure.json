@@ -73,20 +73,6 @@
 				]
 			}
 		],
-		"parameters": {
-			"pipelineParamRecEmail": {
-				"type": "string"
-			},
-			"pipelineParamColor": {
-				"type": "string"
-			},
-			"pipelineParamTitleSucess": {
-				"type": "string"
-			},
-			"pipelineParamTitleFailure": {
-				"type": "string"
-			}
-		},
 		"annotations": []
 	}
 }
