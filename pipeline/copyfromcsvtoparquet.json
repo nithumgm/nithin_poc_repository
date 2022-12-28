@@ -3,6 +3,49 @@
 	"properties": {
 		"activities": [
 			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Copy data1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_adlsgen2_json",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "pipelineinformation.json",
+							"dsparamContainerName": "poc",
+							"dsparamDirectoryName": "inputdata"
+						}
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
 				"name": "Copy data1",
 				"type": "Copy",
 				"dependsOn": [],
@@ -74,7 +117,7 @@
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "Copy data1",
+						"activity": "Lookup1",
 						"dependencyConditions": [
 							"Failed"
 						]
@@ -109,7 +152,7 @@
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "Copy data1",
+						"activity": "Filter1",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -134,23 +177,33 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"Pipelinename\":\"@{pipeline().Pipeline}\",\n    \"Runid\":\"@{pipeline().RunId}\",\n    \"Status\":\"@{equals(activity('Copy data1').output.executionDetails[0].status,'Succeeded')}\"\n}",
+						"value": "{\n\n    \"Pipelinename\":\"@{activity('Filter1').output}\",\n    \"Runid\":\"@{pipeline().RunId}\",\n    \"Status\":\"@{equals(activity('Copy data1').output.executionDetails[0].status,'Succeeded')}\"\n}",
 						"type": "Expression"
 					}
 				}
 			},
 			{
-				"name": "Lookup1",
-				"type": "Lookup",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": []
+				"name": "Filter1",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup1').output.value",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@equals(activity('Lookup1').output.value,'Success')",
+						"type": "Expression"
+					}
+				}
 			}
 		],
 		"annotations": []
