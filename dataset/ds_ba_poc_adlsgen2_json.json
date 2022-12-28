@@ -2,7 +2,7 @@
 	"name": "ds_ba_poc_adlsgen2_json",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "ls_adlsgen2_poc",
+			"referenceName": "ls_adlsgen2vijeshma_poc",
 			"type": "LinkedServiceReference"
 		},
 		"parameters": {
