@@ -1,11 +1,18 @@
 {
-	"name": "SendEmailAlerts",
+	"name": "SendEmailAlerts_copy1",
 	"properties": {
 		"activities": [
 			{
 				"name": "Execute Pipeline1",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Lookup Config File",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
@@ -20,7 +27,7 @@
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "Execute Pipeline1",
+						"activity": "Filter Suceess Row",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -81,6 +88,67 @@
 					},
 					"body": {
 						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleFailure}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnFailure}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').error.Message}\"\n}",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Lookup Config File",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"modifiedDatetimeStart": "2022-12-29T00:00:00.129Z",
+							"modifiedDatetimeEnd": "2022-12-29T00:00:00.066Z",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_adlsgen2_json",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "EmailAlertsConfig.json",
+							"dsparamContainerName": "poc",
+							"dsparamDirectoryName": "configfiles"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Filter Suceess Row",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "Execute Pipeline1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup Config File').output.value",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@equals(item().AlertType,'Success')",
 						"type": "Expression"
 					}
 				}
