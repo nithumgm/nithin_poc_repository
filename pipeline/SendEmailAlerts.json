@@ -58,41 +58,6 @@
 				}
 			},
 			{
-				"name": "Send Email On Failure",
-				"type": "WebActivity",
-				"dependsOn": [
-					{
-						"activity": "Execute Pipeline1",
-						"dependencyConditions": [
-							"Failed"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
-					"connectVia": {
-						"referenceName": "AutoResolveIntegrationRuntime",
-						"type": "IntegrationRuntimeReference"
-					},
-					"method": "POST",
-					"headers": {
-						"Content-Type": "application/json"
-					},
-					"body": {
-						"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleFailure}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnFailure}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').error.Message}\"\n}",
-						"type": "Expression"
-					}
-				}
-			},
-			{
 				"name": "Lookup Config File",
 				"type": "Lookup",
 				"dependsOn": [],
@@ -154,28 +119,6 @@
 				}
 			}
 		],
-		"parameters": {
-			"pipelineParamRecEmail": {
-				"type": "string",
-				"defaultValue": "nithin.kumar@novigosolutions.com"
-			},
-			"pipelineParamColorOnSuccess": {
-				"type": "string",
-				"defaultValue": "green"
-			},
-			"pipelineParamColorOnFailure": {
-				"type": "string",
-				"defaultValue": "red"
-			},
-			"pipelineParamTitleSucess": {
-				"type": "string",
-				"defaultValue": "Pipeline Executed Successfully"
-			},
-			"pipelineParamTitleFailure": {
-				"type": "string",
-				"defaultValue": "Pipeline Execution Failed"
-			}
-		},
 		"variables": {
 			"tes": {
 				"type": "String"
