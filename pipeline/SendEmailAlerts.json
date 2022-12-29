@@ -23,11 +23,11 @@
 				}
 			},
 			{
-				"name": "Send Email On Success",
+				"name": "Send Email Alert",
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "FilterSuccess",
+						"activity": "If Condition1",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -52,7 +52,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"Title\":\"@{activity('FilterSuccess').output.Value[0].Subject}\",\n    \"Color\":\"@{activity('FilterSuccess').output.Value[0].AlertColor}\",\n    \"RecieverEmailID\":\"@{activity('FilterSuccess').output.Value[0].RecieverEmailID}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"Pipeline Executed Successfully\",\n    \"EmailBody\":\"@{activity('FilterSuccess').output.Value[0].EmailBody}\",\n    \"EmailBodyFooter\":\"@{activity('FilterSuccess').output.Value[0].EmailBodyFooter}\"\n\n}",
+						"value": "{\n    \"Title\":\"@{activity('FilterSuccess').output.Value[0].Subject}\",\n    \"Color\":\"@{activity('FilterSuccess').output.Value[0].AlertColor}\",\n    \"RecieverEmailID\":\"@{activity('FilterSuccess').output.Value[0].RecieverEmailID}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{variables('ErrorMessage')}\",\n    \"EmailBody\":\"@{activity('FilterSuccess').output.Value[0].EmailBody}\",\n    \"EmailBodyFooter\":\"@{activity('FilterSuccess').output.Value[0].EmailBodyFooter}\"\n\n}",
 						"type": "Expression"
 					}
 				}
@@ -117,6 +117,48 @@
 						"type": "Expression"
 					}
 				}
+			},
+			{
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "FilterSuccess",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"ifFalseActivities": [
+						{
+							"name": "Set variable2",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "ErrorMessage",
+								"value": {
+									"value": "@{activity('Execute Pipeline1').error.Message}",
+									"type": "Expression"
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Set variable1",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "ErrorMessage",
+								"value": "Pipeline Executed Successful"
+							}
+						}
+					]
+				}
 			}
 		],
 		"variables": {
@@ -134,6 +176,9 @@
 			},
 			"test": {
 				"type": "Array"
+			},
+			"ErrorMessage": {
+				"type": "String"
 			}
 		},
 		"annotations": []
