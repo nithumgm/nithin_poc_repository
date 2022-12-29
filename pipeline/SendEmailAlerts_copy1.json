@@ -27,7 +27,7 @@
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "Filter Suceess Row",
+						"activity": "Filter Success Row",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -131,7 +131,7 @@
 				}
 			},
 			{
-				"name": "Filter Suceess Row",
+				"name": "Filter Success Row",
 				"type": "Filter",
 				"dependsOn": [
 					{

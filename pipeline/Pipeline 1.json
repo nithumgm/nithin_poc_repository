@@ -78,7 +78,7 @@
 				"typeProperties": {
 					"variableName": "Result",
 					"value": {
-						"value": "@activity('Filter1').output[0]\n",
+						"value": "@activity('Filter1').output.Value[0].ReceiverEmailID\n",
 						"type": "Expression"
 					}
 				}
