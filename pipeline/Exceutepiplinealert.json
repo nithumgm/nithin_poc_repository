@@ -1,0 +1,180 @@
+{
+	"name": "Exceutepiplinealert",
+	"properties": {
+		"activities": [
+			{
+				"name": "Execute Pipeline1",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "copyfromcsvtoparquet",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "Web2",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Filter1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": "https://prod-07.centralus.logic.azure.com:443/workflows/526ffdfcff624e6f869a3b7b110b9716/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ec6JX87zADlqxMQHvA6u3-kO9027tM_6jD8R61rR-2E",
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "POST",
+					"headers": {
+						"Content-Type": "application/json"
+					},
+					"body": {
+						"value": "{\n    \"Emailsubject\":\"@{activity('Filter1').output.Value[0].Subject}\",\n    \"Emailbody\":\"@{activity('Filter1').output.Value[0].Emailbody}\",\n    \"Receiver\":\"@{activity('Filter1').output.Value[0].Receiver}\",\n    \"PipelineStatus\":\"@{activity('Filter1').output.Value[0].Alerttype}\",\n    \"Pipelinename\":\"@{pipeline().Pipeline}\",\n    \"Runid\":\"@{pipeline().RunId}\",\n    \"PipelineExeciontime\":@{pipeline().TriggerTime}\n}",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Web1",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Filter2",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": "https://prod-07.centralus.logic.azure.com:443/workflows/526ffdfcff624e6f869a3b7b110b9716/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ec6JX87zADlqxMQHvA6u3-kO9027tM_6jD8R61rR-2E",
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "POST",
+					"headers": {
+						"Content-Type": "application/json"
+					},
+					"body": {
+						"value": "{\n    \"Emailsubject\":\"@{activity('Filter2').output.Value[0].Subject}\",\n    \"Emailbody\":\"@{activity('Filter2').output.Value[0].Emailbody}\",\n    \"Receiver\":\"@{activity('Filter2').output.Value[0].Receiver}\",\n    \"PipelineStatus\":\"@{activity('Filter2').output.Value[0].Alerttype}\",\n    \"Pipelinename\":\"@{pipeline().Pipeline}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').Error.Message}\",\n    \"Runid\":\"@{pipeline().RunId}\",\n    \"PipelineExeciontime\":@{pipeline().TriggerTime}\n}",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_adlsgen2_json",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "Pipelineinformation1.json",
+							"dsparamContainerName": "poc",
+							"dsparamDirectoryName": "inputdata"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Filter1",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "Execute Pipeline1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup1').output.value",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@and(equals(item().Alerttype,'Success'),equals(item().Pipelinename,pipeline().Pipeline))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Filter2",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "Execute Pipeline1",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup1').output.value",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@and(equals(item().Alerttype,'Fail'),equals(item().Pipelinename,pipeline().Pipeline))",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"annotations": []
+	}
+}
