@@ -87,6 +87,12 @@
 		"variables": {
 			"Result": {
 				"type": "String"
+			},
+			"del": {
+				"type": "String"
+			},
+			"nn": {
+				"type": "String"
 			}
 		},
 		"annotations": []

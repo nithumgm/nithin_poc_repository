@@ -176,23 +176,6 @@
 				"defaultValue": "Pipeline Execution Failed"
 			}
 		},
-		"variables": {
-			"tes": {
-				"type": "String"
-			},
-			"errmsg": {
-				"type": "String"
-			},
-			"Result": {
-				"type": "String"
-			},
-			"resultset": {
-				"type": "String"
-			},
-			"test": {
-				"type": "Array"
-			}
-		},
 		"annotations": []
 	}
 }
