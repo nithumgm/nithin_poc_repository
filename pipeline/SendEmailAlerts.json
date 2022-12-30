@@ -177,26 +177,6 @@
 				}
 			}
 		],
-		"variables": {
-			"tes": {
-				"type": "String"
-			},
-			"errmsg": {
-				"type": "String"
-			},
-			"Result": {
-				"type": "String"
-			},
-			"resultset": {
-				"type": "String"
-			},
-			"test": {
-				"type": "Array"
-			},
-			"ErrorMessage": {
-				"type": "String"
-			}
-		},
 		"annotations": []
 	}
 }
