@@ -271,6 +271,171 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/Pipeline 1')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"modifiedDatetimeStart": "2022-12-29T00:00:00.129Z",
+									"modifiedDatetimeEnd": "2022-12-29T00:00:00.066Z",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_adlsgen2_json",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "EmailAlertsConfig.json",
+									"dsparamContainerName": "poc",
+									"dsparamDirectoryName": "configfiles"
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Filter1",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Lookup1",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup1').output.value",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().AlertType,'Success')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Set variable1",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Filter1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "Result",
+							"value": {
+								"value": "@activity('Filter1').output.Value[0].ReceiverEmailID\n",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"variables": {
+					"Result": {
+						"type": "String"
+					},
+					"del": {
+						"type": "String"
+					},
+					"nn": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adlsgen2_json')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Pipeline 2')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Set variable1",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline1",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "nn",
+							"value": {
+								"value": "@activity('Execute Pipeline1').output.status",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Execute Pipeline1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SendEmailAlerts",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"variables": {
+					"nn": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/SendEmailAlerts')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/SendEmailAlerts')]",
 			"type": "Microsoft.Synapse/workspaces/pipelines",
 			"apiVersion": "2019-06-01-preview",
@@ -279,7 +444,208 @@
 					{
 						"name": "Execute Pipeline1",
 						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Lookup Config File",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TestFailure",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Send Email Alert on Success",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "FilterSuccess",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+							"connectVia": {
+								"referenceName": "AutoResolveIntegrationRuntime",
+								"type": "IntegrationRuntimeReference"
+							},
+							"method": "POST",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"body": {
+								"value": "{\n    \"Title\":\"@{activity('FilterSuccess').output.Value[0].Subject}\",\n    \"Color\":\"@{activity('FilterSuccess').output.Value[0].AlertColor}\",\n    \"RecieverEmailID\":\"@{activity('FilterSuccess').output.Value[0].RecieverEmailID}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"Pipeline Executed Successfully\",\n    \"EmailBody\":\"@{activity('FilterSuccess').output.Value[0].EmailBody}\",\n    \"EmailBodyFooter\":\"@{activity('FilterSuccess').output.Value[0].EmailBodyFooter}\"\n\n}",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Lookup Config File",
+						"type": "Lookup",
 						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"modifiedDatetimeStart": "2022-12-29T00:00:00.129Z",
+									"modifiedDatetimeEnd": "2022-12-29T00:00:00.066Z",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "ds_ba_poc_adlsgen2_json",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "EmailAlertsConfig.json",
+									"dsparamContainerName": "poc",
+									"dsparamDirectoryName": "configfiles"
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "FilterSuccess",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup Config File').output.value",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().AlertType,'Success'),equals(item().PipelineName,pipeline().Pipeline))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "FilterFailure",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline1",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup Config File').output.value",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().AlertType,'Failure'),equals(item().PipelineName,pipeline().Pipeline))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Send Email Alert on Failure",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "FilterFailure",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+							"connectVia": {
+								"referenceName": "AutoResolveIntegrationRuntime",
+								"type": "IntegrationRuntimeReference"
+							},
+							"method": "POST",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"body": {
+								"value": "{\n    \"Title\":\"@{activity('FilterFailure').output.Value[0].Subject}\",\n    \"Color\":\"@{activity('FilterFailure').output.Value[0].AlertColor}\",\n    \"RecieverEmailID\":\"@{activity('FilterFailure').output.Value[0].RecieverEmailID}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').error.Message}\",\n    \"EmailBody\":\"@{activity('FilterFailure').output.Value[0].EmailBody}\",\n    \"EmailBodyFooter\":\"@{activity('FilterFailure').output.Value[0].EmailBodyFooter}\"\n\n}",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/pipelines/TestFailure')]",
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adlsgen2_json')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SendEmailAlerts_copy1')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "Execute Pipeline1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Lookup Config File",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -295,7 +661,7 @@
 						"type": "WebActivity",
 						"dependsOn": [
 							{
-								"activity": "Execute Pipeline1",
+								"activity": "Filter Success Row",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -359,80 +725,11 @@
 								"type": "Expression"
 							}
 						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"pipelineParamRecEmail": {
-						"type": "string",
-						"defaultValue": "nithin.kumar@novigosolutions.com"
 					},
-					"pipelineParamColorOnSuccess": {
-						"type": "string",
-						"defaultValue": "green"
-					},
-					"pipelineParamColorOnFailure": {
-						"type": "string",
-						"defaultValue": "red"
-					},
-					"pipelineParamTitleSucess": {
-						"type": "string",
-						"defaultValue": "Pipeline Executed Successfully"
-					},
-					"pipelineParamTitleFailure": {
-						"type": "string",
-						"defaultValue": "Pipeline Execution Failed"
-					}
-				},
-				"variables": {
-					"tes": {
-						"type": "String"
-					},
-					"errmsg": {
-						"type": "String"
-					}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/pipelines/CopyfromSalesForcetoRaw')]",
-				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/SendEmailAlerts_copy1')]",
-			"type": "Microsoft.Synapse/workspaces/pipelines",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"activities": [
 					{
-						"name": "Execute Pipeline1",
-						"type": "ExecutePipeline",
+						"name": "Lookup Config File",
+						"type": "Lookup",
 						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyfromSalesForcetoRaw",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Send Email On Success",
-						"type": "WebActivity",
-						"dependsOn": [
-							{
-								"activity": "Execute Pipeline1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
 						"policy": {
 							"timeout": "0.12:00:00",
 							"retry": 0,
@@ -442,17 +739,50 @@
 						},
 						"userProperties": [],
 						"typeProperties": {
-							"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
-							"connectVia": {
-								"referenceName": "AutoResolveIntegrationRuntime",
-								"type": "IntegrationRuntimeReference"
+							"source": {
+								"type": "JsonSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"modifiedDatetimeStart": "2022-12-29T00:00:00.129Z",
+									"modifiedDatetimeEnd": "2022-12-29T00:00:00.066Z",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
 							},
-							"method": "POST",
-							"headers": {
-								"Content-Type": "application/json"
+							"dataset": {
+								"referenceName": "ds_ba_poc_adlsgen2_json",
+								"type": "DatasetReference",
+								"parameters": {
+									"dsparamFileName": "EmailAlertsConfig.json",
+									"dsparamContainerName": "poc",
+									"dsparamDirectoryName": "configfiles"
+								}
 							},
-							"body": {
-								"value": "{\n    \"Title\":\"@{pipeline().parameters.pipelineParamTitleSucess}\",\n    \"Color\":\"@{pipeline().parameters.pipelineParamColorOnSuccess}\",\n    \"RecieverEmailID\":\"@{pipeline().parameters.pipelineParamRecEmail}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"2022\"\n}",
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Filter Success Row",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup Config File').output.value",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().AlertType,'Success')",
 								"type": "Expression"
 							}
 						}
@@ -488,7 +818,8 @@
 			},
 			"dependsOn": [
 				"[concat(variables('workspaceId'), '/pipelines/CopyfromSalesForcetoRaw')]",
-				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adlsgen2_json')]"
 			]
 		},
 		{
