@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "CopyfromSalesForcetoRaw",
+						"referenceName": "TestFailure",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true
