@@ -23,11 +23,11 @@
 				}
 			},
 			{
-				"name": "Send Email Alert",
+				"name": "Send Email Alert on Success",
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "If Condition1",
+						"activity": "FilterSuccess",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -52,7 +52,7 @@
 						"Content-Type": "application/json"
 					},
 					"body": {
-						"value": "{\n    \"Title\":\"@{activity('FilterSuccess').output.Value[0].Subject}\",\n    \"Color\":\"@{activity('FilterSuccess').output.Value[0].AlertColor}\",\n    \"RecieverEmailID\":\"@{activity('FilterSuccess').output.Value[0].RecieverEmailID}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{variables('ErrorMessage')}\",\n    \"EmailBody\":\"@{activity('FilterSuccess').output.Value[0].EmailBody}\",\n    \"EmailBodyFooter\":\"@{activity('FilterSuccess').output.Value[0].EmailBodyFooter}\"\n\n}",
+						"value": "{\n    \"Title\":\"@{activity('FilterSuccess').output.Value[0].Subject}\",\n    \"Color\":\"@{activity('FilterSuccess').output.Value[0].AlertColor}\",\n    \"RecieverEmailID\":\"@{activity('FilterSuccess').output.Value[0].RecieverEmailID}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"Pipeline Executed Successfully\",\n    \"EmailBody\":\"@{activity('FilterSuccess').output.Value[0].EmailBody}\",\n    \"EmailBodyFooter\":\"@{activity('FilterSuccess').output.Value[0].EmailBodyFooter}\"\n\n}",
 						"type": "Expression"
 					}
 				}
@@ -113,51 +113,67 @@
 						"type": "Expression"
 					},
 					"condition": {
-						"value": "@equals(item().AlertType,'Success')",
+						"value": "@and(equals(item().AlertType,'Success'),equals(item().PipelineName,pipeline().Pipeline))",
 						"type": "Expression"
 					}
 				}
 			},
 			{
-				"name": "If Condition1",
-				"type": "IfCondition",
+				"name": "FilterFailure",
+				"type": "Filter",
 				"dependsOn": [
 					{
-						"activity": "FilterSuccess",
+						"activity": "Execute Pipeline1",
 						"dependencyConditions": [
-							"Succeeded"
+							"Failed"
 						]
 					}
 				],
 				"userProperties": [],
 				"typeProperties": {
-					"ifFalseActivities": [
-						{
-							"name": "Set variable2",
-							"type": "SetVariable",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "ErrorMessage",
-								"value": {
-									"value": "@{activity('Execute Pipeline1').error.Message}",
-									"type": "Expression"
-								}
-							}
-						}
-					],
-					"ifTrueActivities": [
-						{
-							"name": "Set variable1",
-							"type": "SetVariable",
-							"dependsOn": [],
-							"userProperties": [],
-							"typeProperties": {
-								"variableName": "ErrorMessage",
-								"value": "Pipeline Executed Successful"
-							}
-						}
-					]
+					"items": {
+						"value": "@activity('Lookup Config File').output.value",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@and(equals(item().AlertType,'Failure'),equals(item().PipelineName,pipeline().Pipeline))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Send Email Alert on Failure",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "FilterFailure",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "POST",
+					"headers": {
+						"Content-Type": "application/json"
+					},
+					"body": {
+						"value": "{\n    \"Title\":\"@{activity('FilterFailure').output.Value[0].Subject}\",\n    \"Color\":\"@{activity('FilterFailure').output.Value[0].AlertColor}\",\n    \"RecieverEmailID\":\"@{activity('FilterFailure').output.Value[0].RecieverEmailID}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"@{activity('Execute Pipeline1').error.Message}\",\n    \"EmailBody\":\"@{activity('FilterFailure').output.Value[0].EmailBody}\",\n    \"EmailBodyFooter\":\"@{activity('FilterFailure').output.Value[0].EmailBodyFooter}\"\n\n}",
+						"type": "Expression"
+					}
 				}
 			}
 		],
