@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 16",
+	"properties": {
+		"content": {
+			"query": "\nIF OBJECT_ID('tempdb..#TempTable') IS  NULL\n BEGIN\n CREATE TABLE #TempTable\n    (\n     [doc] nvarchar(4000) \n    )\nWITH\n    (    DISTRIBUTION = ROUND_ROBIN,\n     CLUSTERED COLUMNSTORE INDEX\n     -- HEAP\n    )\n\nCOPY INTO #TempTable  \n \n\tFROM 'https://nithindatalakestorage.dfs.core.windows.net/poc/salesforce/jsonfiles/user.json'\n\tWITH (\n      \n\t\tFILE_TYPE = 'CSV'\n\t\t,fieldterminator ='0x0b'\n        ,fieldquote = '0x0b'\n        ,rowterminator = '0x0A'   \n\t\t,CREDENTIAL=(IDENTITY= 'Managed Identity')        \n\t)\n  END\n; \n  with SalesForceJsonData_CT \n   as  ( \nSELECT  \n  JSON_VALUE(doc, '$.id') AS id, \n  JSON_VALUE(doc, '$.name') AS name,\n  JSON_VALUE(doc, '$.username') AS username,\n    JSON_VALUE(doc, '$.email') AS email,\n    JSON_VALUE(doc, '$.address.street') AS street,\n    JSON_VALUE(doc, '$.address.suite') AS suite,\n    JSON_VALUE(doc, '$.address.zipcode') AS zipcode,\n    JSON_VALUE(doc,'$.address.geo.lat') as Lat,\n    JSON_VALUE(doc,'$.address.geo.lng') as lng,\n    JSON_VALUE(doc, '$.phone') AS phone,\n    JSON_VALUE(doc, '$.website') AS website,\n    JSON_VALUE(doc, '$.company.name') AS companyname,\n    JSON_VALUE(doc, '$.company.catchPhrase') AS catchPhrase,\n   JSON_VALUE(doc, '$.company.bs') AS bs   \nFROM dbo.#TempTable)\n\nselect * from SalesForceJsonData_CT",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
