@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 14",
+	"properties": {
+		"content": {
+			"query": "select *\nfrom openrowset(\n       BULK 'https://nithindatalakestorage.dfs.core.windows.net/poc/salesforce/jsonfiles/cdc_stream_12_21_22__06.json',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b',\n        ROWTERMINATOR = '0x0b'\n    ) with (doc nvarchar(max)) as rows\n    cross apply openjson (doc)\n        with (country varchar(100) '$.schema')\n ",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "master",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

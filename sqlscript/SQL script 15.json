@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 15",
+	"properties": {
+		"content": {
+			"query": "DECLARE @data NVARCHAR(4000);\nSET @data = N'{\n\"employees\":\n[      {\n         \"name\":\"Raj\",\n         \"email\":\"raj@gmail.com\",\n         \"age\":32\n          \n},\n      {\n         \"name\":\"Mohan\",\n         \"email\":\"Mohan@yahoo.com\",\n         \"age\":21\n          \n        }   \n]\n}';\nSELECT JSON_QUERY(@data, '$.employees[0]') AS 'Result';",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "Test",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

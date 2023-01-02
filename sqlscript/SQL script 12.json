@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 12",
+	"properties": {
+		"content": {
+			"query": "CREATE TABLE dbo.#TempTable\n    (\n     [doc] nvarchar(4000) \n    )\nWITH\n    (\n    DISTRIBUTION = ROUND_ROBIN,\n     CLUSTERED COLUMNSTORE INDEX\n     -- HEAP\n    )\nGO\n\nCOPY INTO dbo.#TempTable ([Value])\n \n\tFROM 'https://nithindatalakestorage.dfs.core.windows.net/poc/salesforce/jsonfiles/cdc_stream_12_21_22__06.json'\n\tWITH (\n      \n\t\tFILE_TYPE = 'CSV'\n\t\t,fieldterminator ='0x0b'\n        ,fieldquote = '0x0b'\n        ,rowterminator = '\\n'  /* Override This if a Json document and not single object */\n\t\t,CREDENTIAL=(IDENTITY= 'Managed Identity')\n        \n\t)\n\n\n    select * from  dbo.#TempTable\n ",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
