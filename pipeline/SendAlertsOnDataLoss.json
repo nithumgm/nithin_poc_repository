@@ -1,5 +1,5 @@
 {
-	"name": "Pipeline 3",
+	"name": "SendAlertsOnDataLoss",
 	"properties": {
 		"activities": [
 			{
@@ -82,17 +82,104 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Filter Table').output.Value[0].RowsCount,activity('Get NewRowCount').output.firstRow.RowsCount)",
+						"value": "@greater(activity('Filter Table').output.Value[0].RowsCount,activity('Get NewRowCount').output.firstRow.RowsCount)",
 						"type": "Expression"
 					},
-					"ifTrueActivities": [
+					"ifFalseActivities": [
 						{
-							"name": "Wait1",
-							"type": "Wait",
-							"dependsOn": [],
+							"name": "Send Email Alerts",
+							"type": "WebActivity",
+							"dependsOn": [
+								{
+									"activity": "FilterSuccess",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
 							"userProperties": [],
 							"typeProperties": {
-								"waitTimeInSeconds": 1
+								"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+								"connectVia": {
+									"referenceName": "AutoResolveIntegrationRuntime",
+									"type": "IntegrationRuntimeReference"
+								},
+								"method": "POST",
+								"headers": {
+									"Content-Type": "application/json"
+								},
+								"body": {
+									"value": "{\n    \"Title\":\"@{activity('FilterSuccess').output.Value[0].Subject}\",\n    \"Color\":\"@{activity('FilterSuccess').output.Value[0].AlertColor}\",\n    \"RecieverEmailID\":\"@{activity('FilterSuccess').output.Value[0].RecieverEmailID}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"Pipeline Executed Successfully\",\n    \"EmailBody\":\"@{activity('FilterSuccess').output.Value[0].EmailBody}\",\n    \"EmailBodyFooter\":\"@{activity('FilterSuccess').output.Value[0].EmailBodyFooter}\"\n\n}",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Lookup Config File",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"modifiedDatetimeStart": "2022-12-29T00:00:00.129Z",
+										"modifiedDatetimeEnd": "2022-12-29T00:00:00.066Z",
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "ds_ba_poc_adlsgen2_json",
+									"type": "DatasetReference",
+									"parameters": {
+										"dsparamFileName": "EmailAlertsConfig.json",
+										"dsparamContainerName": "poc",
+										"dsparamDirectoryName": "configfiles"
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "FilterSuccess",
+							"type": "Filter",
+							"dependsOn": [
+								{
+									"activity": "Lookup Config File",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"items": {
+									"value": "@activity('Lookup Config File').output.value",
+									"type": "Expression"
+								},
+								"condition": {
+									"value": "@and(equals(item().AlertType,'DataLoss'),equals(item().PipelineName,pipeline().Pipeline))",
+									"type": "Expression"
+								}
 							}
 						}
 					]
