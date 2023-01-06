@@ -37,7 +37,10 @@
 					"type": "Expression"
 				}
 			},
-			"columnDelimiter": "|",
+			"columnDelimiter": {
+				"value": "@dataset().dsparamColumDelimitter",
+				"type": "Expression"
+			},
 			"escapeChar": "\\",
 			"firstRowAsHeader": true,
 			"quoteChar": ""
