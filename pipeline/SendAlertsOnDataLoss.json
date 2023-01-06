@@ -82,7 +82,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@greater(activity('Filter Table').output.Value[0].RowsCount,activity('Get NewRowCount').output.firstRow.RowsCount)",
+						"value": "@greater(int(activity('Get NewRowCount').output.firstRow.RowsCount),int(activity('Filter Table').output.Value[0].RowsCount))",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
