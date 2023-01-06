@@ -82,7 +82,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('Filter Table').output.Value[0].RecordsCount,activity('Get NewRowCount').output.firstRow.RecordsCount)",
+						"value": "@equals(activity('Filter Table').output.Value[0].RowsCount,activity('Get NewRowCount').output.firstRow.RowsCount)",
 						"type": "Expression"
 					},
 					"ifTrueActivities": [
@@ -114,7 +114,7 @@
 					"source": {
 						"type": "SqlPoolSource",
 						"sqlReaderQuery": {
-							"value": "SELECT COUNT(*) as RecordsCount\nFROM @{pipeline().parameters.pipelineParamTableName}",
+							"value": "SELECT COUNT(*) as RowsCount\nFROM @{pipeline().parameters.pipelineParamTableName}",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00"
