@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 18",
+	"properties": {
+		"content": {
+			"query": "\nSELECT sc.name, t.name AS TableName, SUM(p.rows) AS [RowCount] \nFROM sys.tables AS t INNER JOIN sys.partitions AS p ON t.object_id = p.object_id \ninner join sys.schemas sc on t.schema_id=sc.schema_id\nWHERE t.is_ms_shipped = 0 AND p.index_id IN (1, 0) GROUP BY sc.name,t.name\n \n\n\n select count(*)\n from gold.SalesForceJsonData\n ",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 17",
+	"properties": {
+		"content": {
+			"query": "\nCREATE TABLE dbo.#TempTable\n    (\n     [SchemaName] varchar(100),\n     [TableName] varchar(100),\n     [RecordsCount] BIGINT  )\nWITH\n    (\n    DISTRIBUTION = ROUND_ROBIN,\n     CLUSTERED COLUMNSTORE INDEX\n     -- HEAP\n    )\nGO\n\nCOPY INTO dbo.#TempTable\n(SchemaName,TableName,RecordsCount)\nFROM 'https://nithindatalakestorage.blob.core.windows.net/poc/configfiles/TablewiseRecordCount.csv'\nWITH\n(\n    FILE_TYPE = 'CSV'\n    --,FILE_FORMAT='csvFileformat'\n    ,FIRSTROW = 2\n    ,MAXERRORS = 0\n   , ROWTERMINATOR ='\\n'\n    ,IDENTITY_INSERT = 'OFF'\n) \n \n\n select * from  dbo.#TempTable\n where [SchemaName]+'.'+[TableName]=@\n ",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
