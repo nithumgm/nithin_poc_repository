@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 25",
+	"properties": {
+		"content": {
+			"query": " WITH base\nAS\n(\nSELECT\n GETDATE()                                                             AS  [execution_time]\n , DB_ID()                                                            AS  [database_id]\n, DB_NAME()                                                            AS  [database_name]\n, s.name                                                               AS  [schema_name]\n,t.object_id                                                            AS  [table_id]\n, t.name                                                               AS   [table_name]\n,t.create_date                                                          AS  [table_created_date]\n\n, nps.[in_row_data_page_count]\n    + nps.[row_overflow_used_page_count]\n    + nps.[lob_used_page_count]                                        AS  [data_space_page_count]\n, nps.[reserved_page_count]\n - (nps.[reserved_page_count] - nps.[used_page_count])\n - ([in_row_data_page_count]\n         + [row_overflow_used_page_count]+[lob_used_page_count])       AS  [index_space_page_count]\n, nps.[row_count]                                                      AS  [row_count]\nfrom\n    sys.schemas s\nINNER JOIN sys.tables t\n    ON s.[schema_id] = t.[schema_id]\n\nINNER JOIN sys.pdw_table_mappings tm\n    ON t.[object_id] = tm.[object_id]\nINNER JOIN sys.pdw_nodes_tables nt\n    ON tm.[physical_name] = nt.[name]\nINNER JOIN sys.dm_pdw_nodes pn\n    ON  nt.[pdw_node_id] = pn.[pdw_node_id]\nINNER JOIN sys.pdw_distributions di\n    ON  nt.[distribution_id] = di.[distribution_id]\nINNER JOIN sys.dm_pdw_nodes_db_partition_stats nps\n    ON nt.[object_id] = nps.[object_id]\n    AND nt.[pdw_node_id] = nps.[pdw_node_id]\n    AND nt.[distribution_id] = nps.[distribution_id]\nWHERE pn.[type] = 'COMPUTE'\n)\n, size\nAS\n(\nSELECT\n      [database_id]\n,  [database_name]\n,  [schema_name]\n,[table_id]\n,  [table_name]\n,   [table_created_date]\n,  ([data_space_page_count]     * 8.0)                                 AS [data_space_KB]\n,row_count\nFROM base\n)\nSELECT database_id,database_name,schema_name,table_id,table_name,table_created_date,sum(data_space_KB) as DataSpaceinKB,sum(row_count) as RecrodsCount\nFROM size\ngroup by database_id,database_name,schema_name,table_id,table_name,table_created_date\n\n;",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
