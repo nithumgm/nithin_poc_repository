@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 23",
+	"properties": {
+		"content": {
+			"query": "     \nCREATE TABLE #TableDetails (TableName VARCHAR(100),RecordsCount BIGINT,ReservedSpaceInKB VARCHAR(20),DataSpaceInKB VARCHAR(20),\nIndexSize VARCHAR(20),UnUsedSpave VARCHAR(20))\ninsert into #TableDetails\nEXEC sp_spaceused 'gold.SalesForceJsonData'\n\nSELECT DB_ID() AS DB_ID,DB_NAME()  as DB_Name,b.object_id as Table_ID,TableName, DataSpaceInKB,RecordsCount,b.create_date\n FROM #TableDetails a\n INNER JOIN SYS.TABLES b on B.OBJECT_ID=OBJECT_ID('gold.SalesForceJsonData')\n\n\n\n ",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
