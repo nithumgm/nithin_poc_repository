@@ -106,7 +106,7 @@
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"url": "https://prod-13.centralus.logic.azure.com:443/workflows/f0dbfe30eae44aeba8cfd32866a55c6d/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=v-dIAay8NWXK0eiyDxJZNoE86eq3GzK1Q1ghL9Xq7zc",
+								"url": "https://prod-22.centralus.logic.azure.com:443/workflows/6d52335dac044abd8dc7e2626402e1bc/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=H1JZcvLfYGqomNUzETqTTVqxODnVXOYQn_QdtdSrj2E",
 								"connectVia": {
 									"referenceName": "AutoResolveIntegrationRuntime",
 									"type": "IntegrationRuntimeReference"
