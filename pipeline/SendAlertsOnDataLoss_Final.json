@@ -1,5 +1,5 @@
 {
-	"name": "SendAlertsOnDataLoss_copy1",
+	"name": "SendAlertsOnDataLoss_Final",
 	"properties": {
 		"activities": [
 			{
@@ -325,19 +325,7 @@
 		"parameters": {
 			"pipelineParamTableName": {
 				"type": "string",
-				"defaultValue": "SalesPerson"
-			},
-			"pipelineParamSchemaName": {
-				"type": "string",
-				"defaultValue": "Sales"
-			},
-			"pipelineParamDataLossPercentage": {
-				"type": "string",
-				"defaultValue": "20"
-			},
-			"pipelineParamHugeDLPercentage": {
-				"type": "string",
-				"defaultValue": "40"
+				"defaultValue": "Sales.SalesPerson"
 			}
 		},
 		"annotations": []
