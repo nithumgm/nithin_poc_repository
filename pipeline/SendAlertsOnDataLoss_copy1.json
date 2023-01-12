@@ -3,48 +3,9 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Get OldRowCount",
-				"type": "Lookup",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "SqlPoolSource",
-						"sqlReaderQuery": {
-							"value": "SELECT * FROM [Audit].[Table_Stats_History]\nWHERE [schema_name] ='@{pipeline().parameters.pipelineParamSchemaName}'\nand [tbl_name] ='@{pipeline().parameters.pipelineParamTableName}'\norder by created_date desc",
-							"type": "Expression"
-						},
-						"queryTimeout": "02:00:00"
-					},
-					"dataset": {
-						"referenceName": "ds_ba_poc_synsql",
-						"type": "DatasetReference",
-						"parameters": {
-							"SchemaName": "default",
-							"TableName": "default"
-						}
-					},
-					"firstRowOnly": true
-				}
-			},
-			{
 				"name": "If Condition1",
 				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "Insert to History Table",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
@@ -184,15 +145,9 @@
 				}
 			},
 			{
-				"name": "Insert to History Table",
-				"type": "Copy",
+				"name": "SP UpdateTableStatusandHistore",
+				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
-					{
-						"activity": "Get OldRowCount",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
 					{
 						"activity": "Get NewRowCount",
 						"dependencyConditions": [
@@ -208,136 +163,10 @@
 					"secureInput": false
 				},
 				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "SqlPoolSource",
-						"sqlReaderQuery": {
-							"value": "SELECT *,GetDate() as CreatedDate\nFROM [Audit].[Table_Status]\nWHERE schema_name='@{pipeline().parameters.pipelineParamSchemaName}'\nand tbl_name='@{pipeline().parameters.pipelineParamTableName}'",
-							"type": "Expression"
-						},
-						"queryTimeout": "02:00:00"
-					},
-					"sink": {
-						"type": "SqlPoolSink",
-						"writeBehavior": "Insert"
-					},
-					"enableStaging": false,
-					"translator": {
-						"type": "TabularTranslator",
-						"mappings": [
-							{
-								"source": {
-									"name": "db_id",
-									"type": "Int32"
-								},
-								"sink": {
-									"name": "db_id",
-									"type": "Int32"
-								}
-							},
-							{
-								"source": {
-									"name": "db_name",
-									"type": "String"
-								},
-								"sink": {
-									"name": "db_name",
-									"type": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "schema_id",
-									"type": "Int32"
-								},
-								"sink": {
-									"name": "schema_id",
-									"type": "Int32"
-								}
-							},
-							{
-								"source": {
-									"name": "schema_name",
-									"type": "String"
-								},
-								"sink": {
-									"name": "schema_name",
-									"type": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "tbl_id",
-									"type": "Int32"
-								},
-								"sink": {
-									"name": "tbl_id",
-									"type": "Int32"
-								}
-							},
-							{
-								"source": {
-									"name": "tbl_name",
-									"type": "String"
-								},
-								"sink": {
-									"name": "tbl_name",
-									"type": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "latest_total_size",
-									"type": "Int64"
-								},
-								"sink": {
-									"name": "total_size",
-									"type": "Int64"
-								}
-							},
-							{
-								"source": {
-									"name": "latest_total_rows",
-									"type": "Int64"
-								},
-								"sink": {
-									"name": "total_rows",
-									"type": "Int64"
-								}
-							},
-							{
-								"source": {
-									"name": "CreatedDate",
-									"type": "DateTime"
-								},
-								"sink": {
-									"name": "created_date",
-									"type": "DateTime"
-								}
-							}
-						]
-					}
-				},
-				"inputs": [
-					{
-						"referenceName": "ds_ba_poc_synsql",
-						"type": "DatasetReference",
-						"parameters": {
-							"SchemaName": "default",
-							"TableName": "default"
-						}
-					}
-				],
-				"outputs": [
-					{
-						"referenceName": "ds_ba_poc_synsql",
-						"type": "DatasetReference",
-						"parameters": {
-							"SchemaName": "Audit",
-							"TableName": "Table_Stats_History"
-						}
-					}
-				]
+				"linkedServiceName": {
+					"referenceName": "ls_synapsesql_poc",
+					"type": "LinkedServiceReference"
+				}
 			}
 		],
 		"parameters": {
