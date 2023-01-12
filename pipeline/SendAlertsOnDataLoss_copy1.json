@@ -19,7 +19,7 @@
 						"value": "@or(equals(activity('Lookup Table Status').output.firstRow.data_loss_fl,'true'),equals(activity('Lookup Table Status').output.firstRow.huge_data_fl,'true'))\n",
 						"type": "Expression"
 					},
-					"ifFalseActivities": [
+					"ifTrueActivities": [
 						{
 							"name": "Send Email Alerts",
 							"type": "WebActivity",
