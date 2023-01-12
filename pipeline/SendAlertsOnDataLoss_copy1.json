@@ -196,14 +196,14 @@
 						},
 						"LatestTotalRows": {
 							"value": {
-								"value": "@activity('Lookup for Server Details').output.firstRow.RecordsCount",
+								"value": "@activity('Get NewRowCount').output.firstRow.RecordsCount",
 								"type": "Expression"
 							},
 							"type": "Int64"
 						},
 						"LatestTotalSize": {
 							"value": {
-								"value": "@activity('Lookup for Server Details').output.firstRow.DataSpaceinKB ",
+								"value": "@activity('Get NewRowCount').output.firstRow.DataSpaceinKB ",
 								"type": "Expression"
 							},
 							"type": "Int64"
