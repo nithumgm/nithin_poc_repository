@@ -221,7 +221,102 @@
 						"type": "SqlPoolSink",
 						"writeBehavior": "Insert"
 					},
-					"enableStaging": false
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "db_id",
+									"type": "Int32"
+								},
+								"sink": {
+									"name": "db_id",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"name": "db_name",
+									"type": "String"
+								},
+								"sink": {
+									"name": "db_name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "schema_id",
+									"type": "Int32"
+								},
+								"sink": {
+									"name": "schema_id",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"name": "schema_name",
+									"type": "String"
+								},
+								"sink": {
+									"name": "schema_name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "tbl_id",
+									"type": "Int32"
+								},
+								"sink": {
+									"name": "tbl_id",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"name": "tbl_name",
+									"type": "String"
+								},
+								"sink": {
+									"name": "tbl_name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "latest_total_size",
+									"type": "Int64"
+								},
+								"sink": {
+									"name": "total_size",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"name": "latest_total_rows",
+									"type": "Int64"
+								},
+								"sink": {
+									"name": "total_rows",
+									"type": "Int64"
+								}
+							},
+							{
+								"source": {
+									"name": "CreatedDate",
+									"type": "DateTime"
+								},
+								"sink": {
+									"name": "created_date",
+									"type": "DateTime"
+								}
+							}
+						]
+					}
 				},
 				"inputs": [
 					{
@@ -238,14 +333,8 @@
 						"referenceName": "ds_ba_poc_synsql",
 						"type": "DatasetReference",
 						"parameters": {
-							"SchemaName": {
-								"value": "@pipeline().parameters.pipelineParamSchemaName",
-								"type": "Expression"
-							},
-							"TableName": {
-								"value": "@pipeline().parameters.pipelineParamTableName",
-								"type": "Expression"
-							}
+							"SchemaName": "Audit",
+							"TableName": "Table_Stats_History"
 						}
 					}
 				]
