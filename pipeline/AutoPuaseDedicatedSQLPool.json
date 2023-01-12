@@ -1,5 +1,5 @@
 {
-	"name": "Pipeline 3",
+	"name": "AutoPuaseDedicatedSQLPool",
 	"properties": {
 		"activities": [
 			{
@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"url": {
-						"value": "https://management.azure.com/subscriptions/da16ec95-05d4-4b58-9f85-0e95af4fef4c/resourceGroups/Nithin-Synapse/providers/Microsoft.Synapse/workspaces/nithin-synapse-workspace2/sqlPools?api-version=2021-06-01",
+						"value": "@https://management.azure.com/subscriptions/pipeline().parameters.SubscriptionID/resourceGroups/pipeline().parameters.ResourceGroup/providers/Microsoft.Synapse/workspaces/pipeline().parameters.WorkspaceName/sqlPools?api-version=2021-06-01",
 						"type": "Expression"
 					},
 					"connectVia": {
@@ -110,14 +110,6 @@
 			"SQLPoolName": {
 				"type": "string",
 				"defaultValue": "nithin_poc_sqlpool"
-			},
-			"PauseorResume": {
-				"type": "string",
-				"defaultValue": "pause"
-			},
-			"WaitSec": {
-				"type": "string",
-				"defaultValue": "10"
 			},
 			"WaitSecRetry": {
 				"type": "string",
