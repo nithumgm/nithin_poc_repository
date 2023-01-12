@@ -1,0 +1,345 @@
+{
+	"name": "SendAlertsOnDataLoss_Latestfinal",
+	"properties": {
+		"activities": [
+			{
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Lookup Table Status",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@or(equals(activity('Lookup Table Status').output.firstRow.data_loss_fl,'true'),equals(activity('Lookup Table Status').output.firstRow.huge_data_fl,'true'))\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Send Email Alerts",
+							"type": "WebActivity",
+							"dependsOn": [
+								{
+									"activity": "FilterSuccess",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"url": "https://prod-22.centralus.logic.azure.com:443/workflows/6d52335dac044abd8dc7e2626402e1bc/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=H1JZcvLfYGqomNUzETqTTVqxODnVXOYQn_QdtdSrj2E",
+								"connectVia": {
+									"referenceName": "AutoResolveIntegrationRuntime",
+									"type": "IntegrationRuntimeReference"
+								},
+								"method": "POST",
+								"headers": {
+									"Content-Type": "application/json"
+								},
+								"body": {
+									"value": "{\n    \"Title\":\"@{activity('FilterSuccess').output.Value[0].Subject}\",\n    \"Color\":\"@{activity('FilterSuccess').output.Value[0].AlertColor}\",\n    \"RecieverEmailID\":\"@{activity('FilterSuccess').output.Value[0].RecieverEmailID}\",\n    \"PipelineName\":\"@{pipeline().Pipeline}\",\n    \"SynapseWorkSpaceName\": \"@{pipeline().DataFactory}\",\n    \"PipelineRunID\":\"@{pipeline().RunId}\",\n    \"ExecuctionTime\":\"@{pipeline().TriggerTime}\",\n    \"ErrorMessage\":\"Pipeline Executed Successfully\",\n    \"EmailBody\":\"@{activity('FilterSuccess').output.Value[0].EmailBody}\",\n    \"EmailBodyFooter\":\"@{activity('FilterSuccess').output.Value[0].EmailBodyFooter}\"\n\n}",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Lookup Config File",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"modifiedDatetimeStart": "2022-12-29T00:00:00.129Z",
+										"modifiedDatetimeEnd": "2022-12-29T00:00:00.066Z",
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "ds_ba_poc_adlsgen2_json",
+									"type": "DatasetReference",
+									"parameters": {
+										"dsparamFileName": "EmailAlertsConfig.json",
+										"dsparamContainerName": "poc",
+										"dsparamDirectoryName": "configfiles"
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
+							"name": "FilterSuccess",
+							"type": "Filter",
+							"dependsOn": [
+								{
+									"activity": "Lookup Config File",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"items": {
+									"value": "@activity('Lookup Config File').output.value",
+									"type": "Expression"
+								},
+								"condition": {
+									"value": "@and(equals(item().AlertType,'DataLoss'),equals(item().PipelineName,pipeline().Pipeline))",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Get NewRowCount",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Lookup for SQL Pool Details",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlPoolSource",
+						"sqlReaderQuery": {
+							"value": "WITH base\nAS\n(\nSELECT\n GETDATE()                                                             AS  [execution_time]\n , DB_ID()                                                            AS  [database_id]\n, DB_NAME()                                                            AS  [database_name]\n,s.schema_id                                                           AS  [schema_id]\n, s.name                                                               AS  [schema_name]\n,t.object_id                                                            AS  [table_id]\n, t.name                                                               AS   [table_name]\n,t.create_date                                                          AS  [table_created_date]\n, nps.[in_row_data_page_count]\n    + nps.[row_overflow_used_page_count]\n    + nps.[lob_used_page_count]                                        AS  [data_space_page_count]\n, nps.[reserved_page_count]\n - (nps.[reserved_page_count] - nps.[used_page_count])\n - ([in_row_data_page_count]\n         + [row_overflow_used_page_count]+[lob_used_page_count])       AS  [index_space_page_count]\n, nps.[row_count]                                                      AS  [row_count]\nfrom\n    sys.schemas s\nINNER JOIN sys.tables t\n    ON s.[schema_id] = t.[schema_id]\n\nINNER JOIN sys.pdw_table_mappings tm\n    ON t.[object_id] = tm.[object_id]\nINNER JOIN sys.pdw_nodes_tables nt\n    ON tm.[physical_name] = nt.[name]\nINNER JOIN sys.dm_pdw_nodes pn\n    ON  nt.[pdw_node_id] = pn.[pdw_node_id]\nINNER JOIN sys.pdw_distributions di\n    ON  nt.[distribution_id] = di.[distribution_id]\nINNER JOIN sys.dm_pdw_nodes_db_partition_stats nps\n    ON nt.[object_id] = nps.[object_id]\n    AND nt.[pdw_node_id] = nps.[pdw_node_id]\n    AND nt.[distribution_id] = nps.[distribution_id]\nWHERE pn.[type] = 'COMPUTE'\n)\n \nSELECT database_id,database_name,schema_id,schema_name,table_id,table_name,sum(([data_space_page_count]     * 8.0)   ) as DataSpaceinKB,sum(row_count) as RecordsCount\nFROM base\nwhere schema_name='@{pipeline().parameters.pipelineParamSchemaName}'\nand table_name='@{pipeline().parameters.pipelineParamTableName}'\ngroup by database_id,database_name,schema_id,schema_name,table_id,table_name,table_created_date\n\n;",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00"
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_synsql",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "default",
+							"TableName": "default"
+						}
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "SP UpdateTableStatusandHistore",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Get NewRowCount",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[usp_UpdateTableStatusandHistory]",
+					"storedProcedureParameters": {
+						"DataLossPercentage": {
+							"value": {
+								"value": "@pipeline().parameters.pipelineParamDataLossPercentage",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"HugeDataLossPercentage": {
+							"value": {
+								"value": "@pipeline().parameters.pipelineParamHugeDLPercentage",
+								"type": "Expression"
+							},
+							"type": "Int32"
+						},
+						"LatestTotalRows": {
+							"value": {
+								"value": "@activity('Get NewRowCount').output.firstRow.RecordsCount",
+								"type": "Expression"
+							},
+							"type": "Int64"
+						},
+						"LatestTotalSize": {
+							"value": {
+								"value": "@activity('Get NewRowCount').output.firstRow.DataSpaceinKB ",
+								"type": "Expression"
+							},
+							"type": "Int64"
+						},
+						"SchemaName": {
+							"value": {
+								"value": "@pipeline().parameters.pipelineParamSchemaName",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"TableName": {
+							"value": {
+								"value": "@pipeline().parameters.pipelineParamTableName",
+								"type": "Expression"
+							},
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_synapsesql_poc",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"databaseName": {
+							"value": "@activity('Lookup for SQL Pool Details').output.firstRow.DatabaseName",
+							"type": "Expression"
+						},
+						"serverName": {
+							"value": "@activity('Lookup for SQL Pool Details').output.firstRow.ServerName",
+							"type": "Expression"
+						},
+						"userName": {
+							"value": "@activity('Lookup for SQL Pool Details').output.firstRow.UserName",
+							"type": "Expression"
+						},
+						"password": {
+							"value": "@activity('Lookup for SQL Pool Details').output.firstRow.Password",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Lookup for SQL Pool Details",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_adlsgen2_json",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamFileName": "SynSQLServerDetails.json.json",
+							"dsparamContainerName": "poc",
+							"dsparamDirectoryName": "configfiles"
+						}
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "Lookup Table Status",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "SP UpdateTableStatusandHistore",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlPoolSource",
+						"sqlReaderQuery": {
+							"value": "SELECT *\nFROM  [Audit].[Table_Status]\nWHERE SCHEMA_NAME='@{pipeline().parameters.pipelineParamSchemaName}'\nAND tbl_name='@{pipeline().parameters.pipelineParamTableName}'",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00"
+					},
+					"dataset": {
+						"referenceName": "ds_ba_poc_synsql",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "default",
+							"TableName": "default"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"pipelineParamTableName": {
+				"type": "string",
+				"defaultValue": "SalesPerson"
+			},
+			"pipelineParamSchemaName": {
+				"type": "string",
+				"defaultValue": "Sales"
+			},
+			"pipelineParamDataLossPercentage": {
+				"type": "string",
+				"defaultValue": "20"
+			},
+			"pipelineParamHugeDLPercentage": {
+				"type": "string",
+				"defaultValue": "40"
+			}
+		},
+		"annotations": []
+	}
+}
