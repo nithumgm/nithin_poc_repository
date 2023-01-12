@@ -124,7 +124,7 @@
 				"type": "Lookup",
 				"dependsOn": [
 					{
-						"activity": "Lookup for Server Details",
+						"activity": "Lookup for SQL Pool Details",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -248,7 +248,7 @@
 				}
 			},
 			{
-				"name": "Lookup for Server Details",
+				"name": "Lookup for SQL Pool Details",
 				"type": "Lookup",
 				"dependsOn": [],
 				"policy": {
