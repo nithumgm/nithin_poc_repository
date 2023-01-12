@@ -208,7 +208,11 @@
 					},
 					"dataset": {
 						"referenceName": "ds_ba_poc_synsql",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "default",
+							"TableName": "default"
+						}
 					},
 					"firstRowOnly": true
 				}
