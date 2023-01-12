@@ -325,7 +325,19 @@
 		"parameters": {
 			"pipelineParamTableName": {
 				"type": "string",
-				"defaultValue": "Sales.SalesPerson"
+				"defaultValue": "SalesPerson"
+			},
+			"pipelineParamSchemaName": {
+				"type": "string",
+				"defaultValue": "Sales"
+			},
+			"pipelineParamDataLossPercentage": {
+				"type": "string",
+				"defaultValue": "20"
+			},
+			"pipelineParamHugeDLPercentage": {
+				"type": "string",
+				"defaultValue": "40"
 			}
 		},
 		"annotations": []
