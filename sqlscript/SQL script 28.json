@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 28",
+	"properties": {
+		"content": {
+			"query": "CREATE PROCEDURE dbo.usp_UpdateTableStatusandHistory   \n    @SchemaName nvarchar(50),   \n    @TableName nvarchar(50)  ,\n    @DataLossPercentage int,\n    @HugeDataLossPercentage int,\n    @TotalSize BIGINT,\n    @TotalRows BIGINT\nAS   \n \n-----------------------Update History Table------------------------------------- \ninsert into Table_Stats_History(db_id,db_name,schema_id,schema_name,tbl_id,tbl_name,total_size,total_rows,created_date)\nselect   db_id,db_name,schema_id,schema_name,tbl_id,tbl_name,latest_total_size,latest_total_rows,getdate()\nfrom audit.Table_Status\nWHERE SCHEMA_NAME=@SchemaName and tbl_name=@TableName\norder by created_date desc\n\n\n-----------------------Perform  Merge------------------------------------- \nDeclare @DataLossFlag BIT,@HugeDataLossFlag BIT\n\nSELECT top 1 total_rows\nFROM audit.Table_Stats_History\nWHERE SCHEMA_NAME=@SchemaName and tbl_name=@TableName\nORDER BY created_date DESC\n\n\n\n\n\nGO  ",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
