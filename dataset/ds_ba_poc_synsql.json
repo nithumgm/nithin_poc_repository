@@ -1,9 +1,27 @@
 {
 	"name": "ds_ba_poc_synsql",
 	"properties": {
+		"parameters": {
+			"SchemaName": {
+				"type": "string"
+			},
+			"TableName": {
+				"type": "string"
+			}
+		},
 		"annotations": [],
 		"type": "SqlPoolTable",
 		"schema": [],
+		"typeProperties": {
+			"schema": {
+				"value": "@dataset().SchemaName",
+				"type": "Expression"
+			},
+			"table": {
+				"value": "@dataset().TableName",
+				"type": "Expression"
+			}
+		},
 		"sqlPool": {
 			"referenceName": "nithin_poc_sqlpool",
 			"type": "SqlPoolReference"
