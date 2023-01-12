@@ -19,8 +19,8 @@
 		"type": "ScheduleTrigger",
 		"typeProperties": {
 			"recurrence": {
-				"frequency": "Hour",
-				"interval": 1,
+				"frequency": "Minute",
+				"interval": 30,
 				"startTime": "2023-01-12T13:00:00",
 				"timeZone": "India Standard Time"
 			}
