@@ -229,19 +229,19 @@
 					"type": "LinkedServiceReference",
 					"parameters": {
 						"databaseName": {
-							"value": "@activity('Lookup for Server Details').output.firstRow.DatabaseName",
+							"value": "@activity('Lookup for SQL Pool Details').output.firstRow.DatabaseName",
 							"type": "Expression"
 						},
 						"serverName": {
-							"value": "@activity('Lookup for Server Details').output.firstRow.ServerName",
+							"value": "@activity('Lookup for SQL Pool Details').output.firstRow.ServerName",
 							"type": "Expression"
 						},
 						"userName": {
-							"value": "@activity('Lookup for Server Details').output.firstRow.UserName",
+							"value": "@activity('Lookup for SQL Pool Details').output.firstRow.UserName",
 							"type": "Expression"
 						},
 						"password": {
-							"value": "@activity('Lookup for Server Details').output.firstRow.Password",
+							"value": "@activity('Lookup for SQL Pool Details').output.firstRow.Password",
 							"type": "Expression"
 						}
 					}
