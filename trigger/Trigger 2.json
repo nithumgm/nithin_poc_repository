@@ -1,0 +1,29 @@
+{
+	"name": "Trigger 2",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "AutoPuaseDedicatedSQLPool",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"ResourceGroup": "Nithin-Synapse",
+					"SubscriptionID": "da16ec95-05d4-4b58-9f85-0e95af4fef4c",
+					"WorkspaceName": "nithin-synapse-workspace2"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Hour",
+				"interval": 1,
+				"startTime": "2023-01-12T05:54:00Z",
+				"timeZone": "UTC"
+			}
+		}
+	}
+}
