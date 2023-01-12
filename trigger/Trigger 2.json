@@ -21,8 +21,8 @@
 			"recurrence": {
 				"frequency": "Hour",
 				"interval": 1,
-				"startTime": "2023-01-12T05:54:00Z",
-				"timeZone": "UTC"
+				"startTime": "2023-01-12T13:00:00",
+				"timeZone": "India Standard Time"
 			}
 		}
 	}
