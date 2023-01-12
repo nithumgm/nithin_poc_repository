@@ -50,7 +50,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@greater(int(activity('Get NewRowCount').output.firstRow.RecordsCount),int(activity('Get OldRowCount').output.firstRow.output.total_rows))",
+						"value": "@greater(int(activity('Get NewRowCount').output.firstRow.RecordsCount),int(activity('Get OldRowCount').output.firstRow.total_rows))",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
