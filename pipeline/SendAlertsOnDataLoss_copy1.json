@@ -18,14 +18,18 @@
 					"source": {
 						"type": "SqlPoolSource",
 						"sqlReaderQuery": {
-							"value": "SELECT * FROM [Audit].[Table_Stats_History]\nWHERE [schema_name] +'.'+[tbl_name] ='@{pipeline().parameters.pipelineParamTableName}'\norder by created_date desc",
+							"value": "SELECT * FROM [Audit].[Table_Stats_History]\nWHERE [schema_name] ='@{pipeline().parameters.pipelineParamSchemaName}'\nand [tbl_name] ='@{pipeline().parameters.pipelineParamTableName}'\norder by created_date desc",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00"
 					},
 					"dataset": {
 						"referenceName": "ds_ba_poc_synsql",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "default",
+							"TableName": "default"
+						}
 					},
 					"firstRowOnly": true
 				}
@@ -33,7 +37,14 @@
 			{
 				"name": "If Condition1",
 				"type": "IfCondition",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Insert to History Table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
@@ -156,14 +167,18 @@
 					"source": {
 						"type": "SqlPoolSource",
 						"sqlReaderQuery": {
-							"value": "WITH base\nAS\n(\nSELECT\n GETDATE()                                                             AS  [execution_time]\n , DB_ID()                                                            AS  [database_id]\n, DB_NAME()                                                            AS  [database_name]\n,s.schema_id                                                           AS  [schema_id]\n, s.name                                                               AS  [schema_name]\n,t.object_id                                                            AS  [table_id]\n, t.name                                                               AS   [table_name]\n,t.create_date                                                          AS  [table_created_date]\n, nps.[in_row_data_page_count]\n    + nps.[row_overflow_used_page_count]\n    + nps.[lob_used_page_count]                                        AS  [data_space_page_count]\n, nps.[reserved_page_count]\n - (nps.[reserved_page_count] - nps.[used_page_count])\n - ([in_row_data_page_count]\n         + [row_overflow_used_page_count]+[lob_used_page_count])       AS  [index_space_page_count]\n, nps.[row_count]                                                      AS  [row_count]\nfrom\n    sys.schemas s\nINNER JOIN sys.tables t\n    ON s.[schema_id] = t.[schema_id]\n\nINNER JOIN sys.pdw_table_mappings tm\n    ON t.[object_id] = tm.[object_id]\nINNER JOIN sys.pdw_nodes_tables nt\n    ON tm.[physical_name] = nt.[name]\nINNER JOIN sys.dm_pdw_nodes pn\n    ON  nt.[pdw_node_id] = pn.[pdw_node_id]\nINNER JOIN sys.pdw_distributions di\n    ON  nt.[distribution_id] = di.[distribution_id]\nINNER JOIN sys.dm_pdw_nodes_db_partition_stats nps\n    ON nt.[object_id] = nps.[object_id]\n    AND nt.[pdw_node_id] = nps.[pdw_node_id]\n    AND nt.[distribution_id] = nps.[distribution_id]\nWHERE pn.[type] = 'COMPUTE'\n)\n \nSELECT database_id,database_name,schema_id,schema_name,table_id,table_name,sum(([data_space_page_count]     * 8.0)   ) as DataSpaceinKB,sum(row_count) as RecordsCount\nFROM base\nwhere schema_name+'.'+table_name='@{pipeline().parameters.pipelineParamTableName}'\ngroup by database_id,database_name,schema_id,schema_name,table_id,table_name,table_created_date\n\n;",
+							"value": "WITH base\nAS\n(\nSELECT\n GETDATE()                                                             AS  [execution_time]\n , DB_ID()                                                            AS  [database_id]\n, DB_NAME()                                                            AS  [database_name]\n,s.schema_id                                                           AS  [schema_id]\n, s.name                                                               AS  [schema_name]\n,t.object_id                                                            AS  [table_id]\n, t.name                                                               AS   [table_name]\n,t.create_date                                                          AS  [table_created_date]\n, nps.[in_row_data_page_count]\n    + nps.[row_overflow_used_page_count]\n    + nps.[lob_used_page_count]                                        AS  [data_space_page_count]\n, nps.[reserved_page_count]\n - (nps.[reserved_page_count] - nps.[used_page_count])\n - ([in_row_data_page_count]\n         + [row_overflow_used_page_count]+[lob_used_page_count])       AS  [index_space_page_count]\n, nps.[row_count]                                                      AS  [row_count]\nfrom\n    sys.schemas s\nINNER JOIN sys.tables t\n    ON s.[schema_id] = t.[schema_id]\n\nINNER JOIN sys.pdw_table_mappings tm\n    ON t.[object_id] = tm.[object_id]\nINNER JOIN sys.pdw_nodes_tables nt\n    ON tm.[physical_name] = nt.[name]\nINNER JOIN sys.dm_pdw_nodes pn\n    ON  nt.[pdw_node_id] = pn.[pdw_node_id]\nINNER JOIN sys.pdw_distributions di\n    ON  nt.[distribution_id] = di.[distribution_id]\nINNER JOIN sys.dm_pdw_nodes_db_partition_stats nps\n    ON nt.[object_id] = nps.[object_id]\n    AND nt.[pdw_node_id] = nps.[pdw_node_id]\n    AND nt.[distribution_id] = nps.[distribution_id]\nWHERE pn.[type] = 'COMPUTE'\n)\n \nSELECT database_id,database_name,schema_id,schema_name,table_id,table_name,sum(([data_space_page_count]     * 8.0)   ) as DataSpaceinKB,sum(row_count) as RecordsCount\nFROM base\nwhere schema_name='@{pipeline().parameters.pipelineParamSchemaName}'\nand table_name='@{pipeline().parameters.pipelineParamTableName}'\ngroup by database_id,database_name,schema_id,schema_name,table_id,table_name,table_created_date\n\n;",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00"
 					},
 					"dataset": {
 						"referenceName": "ds_ba_poc_synsql",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "default",
+							"TableName": "default"
+						}
 					},
 					"firstRowOnly": true
 				}
@@ -197,27 +212,41 @@
 					"source": {
 						"type": "SqlPoolSource",
 						"sqlReaderQuery": {
-							"value": "SELECT *,GetDate() as CreatedDate\nFROM [Audit].[Table_Status]\nWHERE schema_name+'.'+ tbl_name='@{pipeline().parameters.pipelineParamTableName}'",
+							"value": "SELECT *,GetDate() as CreatedDate\nFROM [Audit].[Table_Status]\nWHERE schema_name='@{pipeline().parameters.pipelineParamSchemaName}'\nand tbl_name='@{pipeline().parameters.pipelineParamTableName}'",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00"
 					},
 					"sink": {
 						"type": "SqlPoolSink",
-						"allowCopyCommand": true
+						"writeBehavior": "Insert"
 					},
 					"enableStaging": false
 				},
 				"inputs": [
 					{
 						"referenceName": "ds_ba_poc_synsql",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "default",
+							"TableName": "default"
+						}
 					}
 				],
 				"outputs": [
 					{
 						"referenceName": "ds_ba_poc_synsql",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": {
+								"value": "@pipeline().parameters.pipelineParamSchemaName",
+								"type": "Expression"
+							},
+							"TableName": {
+								"value": "@pipeline().parameters.pipelineParamTableName",
+								"type": "Expression"
+							}
+						}
 					}
 				]
 			}
@@ -225,7 +254,11 @@
 		"parameters": {
 			"pipelineParamTableName": {
 				"type": "string",
-				"defaultValue": "Sales.SalesPerson"
+				"defaultValue": "SalesPerson"
+			},
+			"pipelineParamSchemaName": {
+				"type": "string",
+				"defaultValue": "Sales"
 			}
 		},
 		"annotations": []
