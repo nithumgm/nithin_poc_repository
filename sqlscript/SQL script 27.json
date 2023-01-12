@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 27",
+	"properties": {
+		"content": {
+			"query": "select * from audit.Table_Stats_History\n\nselect * from audit.Table_Status",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nithin_poc_sqlpool",
+				"poolName": "nithin_poc_sqlpool"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
