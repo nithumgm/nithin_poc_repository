@@ -1,0 +1,129 @@
+{
+	"name": "Pipeline 3",
+	"properties": {
+		"activities": [
+			{
+				"name": "PoolStatusCheck",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": {
+						"value": "https://management.azure.com/subscriptions/da16ec95-05d4-4b58-9f85-0e95af4fef4c/resourceGroups/Nithin-Synapse/providers/Microsoft.Synapse/workspaces/nithin-synapse-workspace2/sqlPools?api-version=2021-06-01",
+						"type": "Expression"
+					},
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "GET",
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://management.azure.com/"
+					}
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "PoolStatusCheck",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('PoolStatusCheck').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "If Condition1",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(item().properties.status,'Online')",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "PauseSQLPool",
+										"type": "WebActivity",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"url": {
+												"value": "https://management.azure.com/subscriptions/da16ec95-05d4-4b58-9f85-0e95af4fef4c/resourceGroups/Nithin-Synapse/providers/Microsoft.Synapse/workspaces/nithin-synapse-workspace2/sqlPools/@{item().name}/pause?api-version=2021-06-01",
+												"type": "Expression"
+											},
+											"connectVia": {
+												"referenceName": "AutoResolveIntegrationRuntime",
+												"type": "IntegrationRuntimeReference"
+											},
+											"method": "POST",
+											"authentication": {
+												"type": "MSI",
+												"resource": "https://management.azure.com/"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"ResourceGroup": {
+				"type": "string",
+				"defaultValue": "Nithin-Synapse"
+			},
+			"SubscriptionID": {
+				"type": "string",
+				"defaultValue": " da16ec95-05d4-4b58-9f85-0e95af4fef4c"
+			},
+			"WorkspaceName": {
+				"type": "string",
+				"defaultValue": "nithin-synapse-workspace2"
+			},
+			"SQLPoolName": {
+				"type": "string",
+				"defaultValue": "nithin_poc_sqlpool"
+			},
+			"PauseorResume": {
+				"type": "string",
+				"defaultValue": "pause"
+			},
+			"WaitSec": {
+				"type": "string",
+				"defaultValue": "10"
+			},
+			"WaitSecRetry": {
+				"type": "string",
+				"defaultValue": "30"
+			}
+		},
+		"annotations": []
+	}
+}
