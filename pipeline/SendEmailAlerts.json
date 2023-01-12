@@ -15,10 +15,6 @@
 				],
 				"userProperties": [],
 				"typeProperties": {
-					"pipeline": {
-						"referenceName": "TestFailure",
-						"type": "PipelineReference"
-					},
 					"waitOnCompletion": true
 				}
 			},
