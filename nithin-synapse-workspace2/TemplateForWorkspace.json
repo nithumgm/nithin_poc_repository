@@ -269,8 +269,8 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adlsgen2_json')]",
-				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_restapi_json_copy1')]"
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_restapi_json_copy1')]",
+				"[concat(variables('workspaceId'), '/datasets/ds_ba_poc_adlsgen2_json')]"
 			]
 		},
 		{
@@ -1684,6 +1684,35 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_restapi_json_copy1')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_restapi_ba_poc",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"BaseURL": {
+							"value": "@dataset().dsparamBaseURL",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"dsparamBaseURL": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/ls_restapi_ba_poc')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_synsql')]",
 			"type": "Microsoft.Synapse/workspaces/datasets",
 			"apiVersion": "2019-06-01-preview",
@@ -2599,35 +2628,6 @@
 			},
 			"dependsOn": [],
 			"location": "australiaeast"
-		},
-		{
-			"name": "[concat(parameters('workspaceName'), '/ds_ba_poc_restapi_json_copy1')]",
-			"type": "Microsoft.Synapse/workspaces/datasets",
-			"apiVersion": "2019-06-01-preview",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_restapi_ba_poc",
-					"type": "LinkedServiceReference",
-					"parameters": {
-						"BaseURL": {
-							"value": "@dataset().dsparamBaseURL",
-							"type": "Expression"
-						}
-					}
-				},
-				"parameters": {
-					"dsparamBaseURL": {
-						"type": "string"
-					}
-				},
-				"annotations": [],
-				"type": "RestResource",
-				"typeProperties": {},
-				"schema": []
-			},
-			"dependsOn": [
-				"[concat(variables('workspaceId'), '/linkedServices/ls_restapi_ba_poc')]"
-			]
 		}
 	]
 }
