@@ -4,6 +4,7 @@
 		"activities": [
 			{
 				"name": "PoolStatusCheck",
+				"description": "{}",
 				"type": "WebActivity",
 				"dependsOn": [],
 				"policy": {
