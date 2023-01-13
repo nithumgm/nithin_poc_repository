@@ -1,0 +1,54 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"value": "nithin-synapse-workspace2"
+		},
+		"AzureDataLakeStorage1_accountKey": {
+			"value": ""
+		},
+		"ls_adlsgen2_poc_accountKey": {
+			"value": ""
+		},
+		"ls_synapsesql_poc_connectionString": {
+			"value": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=@{linkedService().serverName};Initial Catalog=@{linkedService().databaseName};User ID=@{linkedService().userName};Password=@{linkedService().password}"
+		},
+		"nithin-synapse-workspace1-WorkspaceDefaultSqlServer_connectionString": {
+			"value": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:nithin-synapse-workspace1.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"nithin-synapse-workspace2-WorkspaceDefaultSqlServer_connectionString": {
+			"value": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:nithin-synapse-workspace2.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"AzureDataLakeStorage1_properties_typeProperties_url": {
+			"value": "https://nithindatalakestorage2.dfs.core.windows.net/"
+		},
+		"ls_adlsgen2_poc_properties_typeProperties_url": {
+			"value": "https://nithindatalakestorage2.dfs.core.windows.net/"
+		},
+		"ls_restapi_ba_poc_properties_typeProperties_url": {
+			"value": "@{linkedService().BaseURL}"
+		},
+		"nithin-synapse-workspace2-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"value": "https://nithindatalakestorage2.dfs.core.windows.net"
+		},
+		"Trigger 1_properties_AutoPuaseDedicatedSQLPool_parameters_ResourceGroup": {
+			"value": "Nithin-Synapse"
+		},
+		"Trigger 1_properties_AutoPuaseDedicatedSQLPool_parameters_SubscriptionID": {
+			"value": "da16ec95-05d4-4b58-9f85-0e95af4fef4c"
+		},
+		"Trigger 1_properties_AutoPuaseDedicatedSQLPool_parameters_WorkspaceName": {
+			"value": "nithin-synapse-workspace2"
+		},
+		"Trigger 2_properties_AutoPuaseDedicatedSQLPool_parameters_ResourceGroup": {
+			"value": "Nithin-Synapse"
+		},
+		"Trigger 2_properties_AutoPuaseDedicatedSQLPool_parameters_SubscriptionID": {
+			"value": "da16ec95-05d4-4b58-9f85-0e95af4fef4c"
+		},
+		"Trigger 2_properties_AutoPuaseDedicatedSQLPool_parameters_WorkspaceName": {
+			"value": "nithin-synapse-workspace2"
+		}
+	}
+}
