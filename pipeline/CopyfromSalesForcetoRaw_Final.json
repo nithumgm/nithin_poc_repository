@@ -37,7 +37,7 @@
 				},
 				"inputs": [
 					{
-						"referenceName": "ds_ba_poc_restapi_json",
+						"referenceName": "ds_ba_poc_restapi_json_copy1",
 						"type": "DatasetReference",
 						"parameters": {
 							"dsparamBaseURL": "https://jsonplaceholder.typicode.com/users"
