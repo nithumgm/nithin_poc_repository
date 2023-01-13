@@ -15,10 +15,6 @@
 				],
 				"userProperties": [],
 				"typeProperties": {
-					"pipeline": {
-						"referenceName": "CopyfromSalesForcetoRaw",
-						"type": "PipelineReference"
-					},
 					"waitOnCompletion": true
 				}
 			},
