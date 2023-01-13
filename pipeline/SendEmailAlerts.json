@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"pipeline": {
-						"referenceName": "MergeSalesforceDatafromRawtoGold",
+						"referenceName": "CopyfromSalesForcetoRaw_Final",
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true
