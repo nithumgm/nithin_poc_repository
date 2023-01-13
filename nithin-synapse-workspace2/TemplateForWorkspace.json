@@ -142,6 +142,7 @@
 										"ifTrueActivities": [
 											{
 												"name": "PauseSQLPool",
+												"description": "{}",
 												"type": "WebActivity",
 												"dependsOn": [],
 												"policy": {
@@ -163,7 +164,7 @@
 													},
 													"method": "POST",
 													"headers": {},
-													"body": {},
+													"body": "{test}",
 													"authentication": {
 														"type": "MSI",
 														"resource": "https://management.azure.com/"
