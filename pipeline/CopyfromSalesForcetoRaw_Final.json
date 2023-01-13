@@ -35,6 +35,15 @@
 					},
 					"enableStaging": false
 				},
+				"inputs": [
+					{
+						"referenceName": "ds_ba_poc_restapi_json",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsparamBaseURL": "https://jsonplaceholder.typicode.com/users"
+						}
+					}
+				],
 				"outputs": [
 					{
 						"referenceName": "ds_ba_poc_adlsgen2_json",
