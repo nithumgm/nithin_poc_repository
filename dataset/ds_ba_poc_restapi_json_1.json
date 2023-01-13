@@ -1,0 +1,23 @@
+{
+	"name": "ds_ba_poc_restapi_json_1",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_restapi_ba_poc",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"BaseURL": {
+					"value": "@dataset().dsparamBaseURL",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"dsparamBaseURL": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "RestResource",
+		"schema": []
+	}
+}
